@@ -1,0 +1,22 @@
+meta {
+  name: Update Input
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/inputs/{{inputId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "recommendedDose": 3.0,
+    "replenishmentPoint": 50
+  }
+}

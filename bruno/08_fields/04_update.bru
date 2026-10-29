@@ -1,0 +1,21 @@
+meta {
+  name: Update Field
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/fields/{{fieldId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Campo La Esperanza - Sur"
+  }
+}

@@ -1,0 +1,16 @@
+meta {
+  name: List Accounts
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/accounts
+  body: none
+  auth: none
+}
+
+params:query {
+  ~category: A
+  ~status: ACTIVE
+}

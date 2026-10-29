@@ -1,0 +1,21 @@
+meta {
+  name: Update Country
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/countries/{{countryId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "taxKeyFormat": "##-########-#"
+  }
+}

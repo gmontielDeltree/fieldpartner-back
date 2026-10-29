@@ -1,0 +1,15 @@
+meta {
+  name: List Zones
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/zones
+  body: none
+  auth: none
+}
+
+params:query {
+  accountId: {{accountId}}
+}

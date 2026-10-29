@@ -1,0 +1,30 @@
+meta {
+  name: Create Deposit
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/deposits
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "accountId": "{{accountId}}",
+    "description": "Depósito Central",
+    "owner": "Don Julio",
+    "isVirtual": false,
+    "address": "Ruta 8 Km 200",
+    "locality": "Pergamino",
+    "province": "Buenos Aires",
+    "countryCode": "AR",
+    "hasSilo": true,
+    "hasDeposit": true
+  }
+}

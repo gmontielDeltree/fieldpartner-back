@@ -1,0 +1,1313 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+generator erd {
+  provider = "prisma-erd-generator"
+  output   = "../ERD.md"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Enums
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum CropType {
+  TUBER
+  GRAMINEAE
+  TEXTILE
+  LEGUME
+  OILSEED
+  INDUSTRIAL
+  CEREAL
+}
+
+enum Labor {
+  PREPARATION
+  SOWING
+  APPLICATION
+  UPROOTING
+  HARVEST
+}
+
+enum AccountCategory {
+  A
+  B
+  C
+}
+
+enum AccountStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING
+  CANCELLED
+}
+
+enum LicenceStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+  SUSPENDED
+}
+
+enum UserState {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING
+  CANCELLED
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum CampaignState {
+  ACTIVE
+  INACTIVE
+  CLOSED
+}
+
+enum StockItemType {
+  SUPPLY
+  CROP
+}
+
+enum StockSumType {
+  BOTH
+  ADD
+  SUBTRACT
+}
+
+enum WithdrawalOrderType {
+  MANUAL
+  AUTOMATIC
+}
+
+enum WithdrawalState {
+  PARTIAL
+  PENDING
+  COMPLETED
+}
+
+enum EntityType {
+  PHYSICAL
+  LEGAL
+}
+
+enum NumeratorType {
+  CLIENT
+  WORK_ORDER
+  PURCHASE_ORDER
+  CEREAL_SALE_CONTRACT
+}
+
+enum LotBranchMode {
+  SHARED
+  INDEPENDENT
+}
+
+enum DeviceStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum InOutDirection {
+  IN
+  OUT
+}
+
+enum FuelType {
+  DIESEL
+  GASOLINE
+}
+
+enum CurrencyCode {
+  ARS
+  USD
+  BRL
+  CLP
+  EUR
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Platform Catalogs — backoffice-managed, global (no accountId)
+// ═══════════════════════════════════════════════════════════════════════════
+
+model Country {
+  id            String   @id @default(uuid())
+  code          String   @unique
+  descriptionES String
+  descriptionPT String
+  descriptionEN String
+  language      String
+  currency      String
+  taxKey        String
+  taxKeyFormat  String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  zones  Zone[]
+  fields Field[]
+  inputs Input[]
+
+  @@map("countries")
+}
+
+model ZipCode {
+  id          Int    @id @default(autoincrement())
+  code        String
+  locality    String
+  state       String
+  countryCode String
+
+  @@unique([code, countryCode])
+  @@map("zip_codes")
+}
+
+model InputType {
+  id            Int      @id @default(autoincrement())
+  code          String   @unique
+  descriptionES String
+  descriptionEN String
+  descriptionPT String
+  phytosanitary Boolean  @default(false)
+  isCrop        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  inputs Input[]
+
+  @@map("input_types")
+}
+
+model Category {
+  id            String   @id @default(uuid())
+  idCategory    String   @unique
+  descriptionES String
+  descriptionPT String
+  descriptionEN String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  inputs Input[]
+
+  @@map("categories")
+}
+
+model Crop {
+  id            String   @id @default(uuid())
+  descriptionES String
+  descriptionPT String?
+  descriptionEN String?
+  cropType      CropType
+  variety       String?
+  labors        Labor[]
+  prepared      Boolean  @default(false)
+  sowing        Boolean  @default(false)
+  application   Boolean  @default(false)
+  germination   Boolean  @default(false)
+  harvest       Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  inputs              Input[]
+  cropApplications    InputCropApplication[]
+  stocks              Stock[]
+  stockMovements      StockMovement[]
+  cropMovements       CropMovement[]
+  cropDeposits        CropDeposit[]
+  exitFields          ExitField[]
+  contractSaleCereals ContractSaleCereal[]
+  certificateDeposits CertificateDeposit[]
+  campaignExpenses    CampaignExpense[]
+
+  @@map("crops")
+}
+
+model MovementType {
+  id           String       @id @default(uuid())
+  name         String
+  conceptES    String
+  conceptPT    String?
+  conceptEN    String?
+  description  String?
+  typeMovement String?
+  manual       Boolean      @default(false)
+  stockSum     StockSumType @default(BOTH)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  stockMovements StockMovement[]
+
+  @@map("movement_types")
+}
+
+model CostExpense {
+  id          String   @id @default(uuid())
+  costCode    String   @unique
+  costCenter  String
+  description String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("cost_expenses")
+}
+
+model DeviceType {
+  id          String       @id @default(uuid())
+  model       String
+  description String?
+  family      String
+  subFamily   String
+  status      DeviceStatus @default(ACTIVE)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("device_types")
+}
+
+model VehicleType {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vehicles Vehicle[]
+
+  @@map("vehicle_types")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Account Cluster
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Backoffice-managed plan/template catalog (CouchDB: licences collection)
+model LicenceType {
+  id                 String   @id
+  label              String
+  description        String?
+  systemType         String?
+  maximumUnitAllowed Int?
+  allowedUsersCount  Int?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  licences Licence[]
+
+  @@map("licence_types")
+}
+
+model Account {
+  id                       String          @id @default(uuid())
+  category                 AccountCategory
+  denomination             String
+  countryCode              String
+  currency                 CurrencyCode
+  status                   AccountStatus   @default(PENDING)
+  accountReference         String?
+  licenceNumber            String?
+  isLicenceMultipleCountry Boolean         @default(false)
+  maxHectares              Int             @default(0)
+  maxFields                Int             @default(0)
+  countFields              Int             @default(0)
+  countLicences            Int             @default(0)
+  countHectares            Int             @default(0)
+  createdAt                DateTime        @default(now())
+  updatedAt                DateTime        @updatedAt
+
+  licences             Licence[]
+  company              Company?
+  contractCorporate    ContractCorporate?
+  zones                Zone[]
+  deposits             Deposit[]
+  fields               Field[]
+  campaigns            Campaign[]
+  vehicles             Vehicle[]
+  inputs               Input[]
+  stocks               Stock[]
+  stockMovements       StockMovement[]
+  cropMovements        CropMovement[]
+  cropDeposits         CropDeposit[]
+  exitFields           ExitField[]
+  withdrawalOrders     WithdrawalOrder[]
+  numerators           Numerator[]
+  originDestinations   OriginDestination[]
+  socialEntities       SocialEntity[]
+  laborServices        LaborService[]
+  purchaseOrders       PurchaseOrder[]
+  productiveUnits      ProductiveUnit[]
+  contractSaleCereals  ContractSaleCereal[]
+  transportDocuments   TransportDocument[]
+  certificateDeposits  CertificateDeposit[]
+  campaignExpenses     CampaignExpense[]
+  depositSupplyOrders  DepositSupplyOrder[]
+
+  @@map("accounts")
+}
+
+model Licence {
+  id                    String        @id @default(uuid())
+  accountId             String
+  account               Account       @relation(fields: [accountId], references: [id])
+  licenceTypeId         String
+  licenceType           LicenceType   @relation(fields: [licenceTypeId], references: [id])
+  countryCode           String?
+  activeUsersAllowed    Int
+  amountLicencesAllowed Int?
+  status                LicenceStatus @default(ACTIVE)
+  startDate             DateTime
+  endDate               DateTime
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  users User[]
+
+  @@map("licences")
+}
+
+model User {
+  id              String    @id @default(uuid())
+  licenceId       String
+  licence         Licence   @relation(fields: [licenceId], references: [id])
+  cognitoId       String    @unique
+  email           String    @unique
+  username        String
+  state           UserState @default(PENDING)
+  role            UserRole?
+  language        String
+  isAdmin         Boolean?
+  isInternal      Boolean?
+  currency        CurrencyCode?
+  photoName       String?
+  activeSessionId String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("users")
+}
+
+// ─── Cat A only ─────────────────────────────────────────────────────────────
+
+model Company {
+  id               String   @id @default(uuid())
+  accountId        String   @unique
+  account          Account  @relation(fields: [accountId], references: [id])
+  fantasyName      String
+  socialReason     String
+  tributaryCode    String
+  address          String
+  phone            String
+  email            String
+  locality         String?
+  province         String?
+  zipCode          String?
+  website          String?
+  observation      String?
+  secondaryContact String?
+  companyLogo      String?
+  countryCode      String?
+  fiscalSituation  String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  companyContracts    CompanyContract[]
+  contractSaleCereals ContractSaleCereal[]
+
+  @@map("companies")
+}
+
+model ContractCorporate {
+  id           String    @id @default(uuid())
+  accountId    String    @unique
+  account      Account   @relation(fields: [accountId], references: [id])
+  campaignId   String?
+  campaign     Campaign? @relation(fields: [campaignId], references: [id])
+  description  String
+  status       String?
+  totalCompany Int?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  companyContracts CompanyContract[]
+
+  @@map("contracts_corporate")
+}
+
+model CompanyContract {
+  id                      String            @id @default(uuid())
+  companyId               String
+  company                 Company           @relation(fields: [companyId], references: [id])
+  contractId              String
+  contract                ContractCorporate @relation(fields: [contractId], references: [id])
+  participationPercentage Float
+  activity                String?
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+
+  @@map("company_contracts")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Supply / Input Catalog (global defaults + per-account records)
+// ═══════════════════════════════════════════════════════════════════════════
+
+model Input {
+  id                      String     @id @default(uuid())
+  accountId               String?
+  account                 Account?   @relation(fields: [accountId], references: [id])
+  countryId               String?
+  country                 Country?   @relation(fields: [countryId], references: [id])
+  replacementId           String?
+  replacement             Input?     @relation("InputReplacement", fields: [replacementId], references: [id])
+  replacedBy              Input[]    @relation("InputReplacement")
+  barCode                 String?
+  name                    String
+  description             String?
+  brand                   String?
+  unitMeasurement         String?
+  stockByLot              Boolean    @default(false)
+  activePrincipal         String?
+  mermaVolatile           Float?
+  minimumDose             Float?
+  maximumDose             Float?
+  recommendedDose         Float?
+  replenishmentPoint      Float?
+  labors                  Labor[]
+  isDefault               Boolean    @default(false)
+  chemicalComposition     String?
+  toxicityClass           String?
+  formulationDenomination String?
+  productUrl              String?
+  eiqValue                Float?
+  senasaId                String?
+  inputTypeId             Int?
+  inputType               InputType? @relation(fields: [inputTypeId], references: [id])
+  categoryId              String?
+  category                Category?  @relation(fields: [categoryId], references: [id])
+  cropId                  String?
+  crop                    Crop?      @relation(fields: [cropId], references: [id])
+  createdAt               DateTime   @default(now())
+  updatedAt               DateTime   @updatedAt
+
+  cropApplications    InputCropApplication[]
+  stocks              Stock[]
+  stockMovements      StockMovement[]
+  purchaseOrderItems  PurchaseOrderItem[]
+  depositSupplyOrders DepositSupplyOrder[]
+
+  @@map("inputs")
+}
+
+model InputCropApplication {
+  id            String  @id @default(uuid())
+  inputId       String
+  input         Input   @relation(fields: [inputId], references: [id], onDelete: Cascade)
+  cropId        String
+  crop          Crop    @relation(fields: [cropId], references: [id])
+  minDose       Float?
+  maxDose       Float?
+  suggestedDose Float?
+
+  @@unique([inputId, cropId])
+  @@map("input_crop_applications")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Operational — per-account
+// ═══════════════════════════════════════════════════════════════════════════
+
+model Zone {
+  id          String   @id @default(uuid())
+  accountId   String
+  account     Account  @relation(fields: [accountId], references: [id])
+  countryId   String?
+  country     Country? @relation(fields: [countryId], references: [id])
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  campaigns Campaign[]
+
+  @@map("zones")
+}
+
+model Deposit {
+  id          String   @id @default(uuid())
+  accountId   String
+  account     Account  @relation(fields: [accountId], references: [id])
+  description String
+  owner       String?
+  isVirtual   Boolean  @default(false)
+  lat         Float?
+  lng         Float?
+  isNegative  Boolean  @default(false)
+  address     String?
+  zipCode     String?
+  locality    String?
+  province    String?
+  countryCode String?
+  hasSiloBag  Boolean  @default(false)
+  hasHopper   Boolean  @default(false)
+  hasSilo     Boolean  @default(false)
+  hasDeposit  Boolean  @default(false)
+  taxId       String?
+  siloBagId   String?
+  status      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  locations           DepositLocation[]
+  stocks              Stock[]
+  stockMovements      StockMovement[]
+  cropMovements       CropMovement[]
+  cropDeposits        CropDeposit[]
+  exitFields          ExitField[]
+  depositSupplyOrders DepositSupplyOrder[]
+
+  @@map("deposits")
+}
+
+model DepositLocation {
+  id        String  @id @default(uuid())
+  depositId String
+  deposit   Deposit @relation(fields: [depositId], references: [id], onDelete: Cascade)
+  number    String?
+  name      String
+
+  @@map("deposit_locations")
+}
+
+model Field {
+  id        String   @id @default(uuid())
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id])
+  countryId String?
+  country   Country? @relation(fields: [countryId], references: [id])
+  name      String
+  uuid      String?  @unique
+  geojson   Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lots                 FieldLot[]
+  exitFields           ExitField[]
+  cropMovements        CropMovement[]
+  cropDeposits         CropDeposit[]
+  stocks               Stock[]
+  productiveUnitFields ProductiveUnitField[]
+  campaigns            Campaign[]
+  campaignExpenses     CampaignExpense[]
+
+  @@map("fields")
+}
+
+model FieldLot {
+  id          String  @id @default(uuid())
+  fieldId     String
+  field       Field   @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  name        String
+  uuid        String? @unique
+  hectares    Float?
+  parentId    String?
+  coordinates Json?
+  lotType     String?
+
+  stocks               Stock[]
+  exitFields           ExitField[]
+  cropMovements        CropMovement[]
+  cropDeposits         CropDeposit[]
+  productiveUnitFields ProductiveUnitField[]
+  campaignExpenses     CampaignExpense[]
+
+  @@map("field_lots")
+}
+
+model Campaign {
+  id                        String         @id @default(uuid())
+  accountId                 String
+  account                   Account        @relation(fields: [accountId], references: [id])
+  zoneId                    String?
+  zone                      Zone?          @relation(fields: [zoneId], references: [id])
+  fieldId                   String?
+  field                     Field?         @relation(fields: [fieldId], references: [id])
+  name                      String
+  description               String?
+  zafra                     String?
+  startDate                 DateTime?
+  endDate                   DateTime?
+  state                     CampaignState  @default(ACTIVE)
+  lotBranchId               String?
+  lotBranchMode             LotBranchMode?
+  lotBranchSourceCampaignId String?
+  lotBranchPromotedAt       DateTime?
+  createdAt                 DateTime       @default(now())
+  updatedAt                 DateTime       @updatedAt
+
+  stocks              Stock[]
+  stockMovements      StockMovement[]
+  cropMovements       CropMovement[]
+  cropDeposits        CropDeposit[]
+  exitFields          ExitField[]
+  withdrawalOrders    WithdrawalOrder[]
+  contractSaleCereals ContractSaleCereal[]
+  transportDocuments  TransportDocument[]
+  certificateDeposits CertificateDeposit[]
+  campaignExpenses    CampaignExpense[]
+  corporateContracts  ContractCorporate[]
+
+  @@map("campaigns")
+}
+
+model Vehicle {
+  id                 String       @id @default(uuid())
+  accountId          String
+  account            Account      @relation(fields: [accountId], references: [id])
+  vehicleTypeId      String?
+  vehicleType        VehicleType? @relation(fields: [vehicleTypeId], references: [id])
+  make               String?
+  model              String?
+  modelYear          String?
+  patent             String?
+  tara               Float?
+  net                Float?
+  gross              Float?
+  chassisNumber      String?
+  fuelType           FuelType?
+  fuelCapacity       Float?
+  connectivity       String?
+  owner              String?
+  insurence          String?
+  coverageType       String?
+  policyNumber       String?
+  insurenceStartDate DateTime?
+  insurenceDueDate   DateTime?
+  location           String?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  maintenances          VehicleMaintenance[]
+  specifications        VehicleSpecification[]
+  exitFieldsChasis      ExitField[]         @relation("ExitFieldChasis")
+  exitFieldsTrailer     ExitField[]         @relation("ExitFieldTrailer")
+  transportDocsChasis   TransportDocument[] @relation("TDChasis")
+  transportDocsTrailer1 TransportDocument[] @relation("TDTrailer1")
+  transportDocsTrailer2 TransportDocument[] @relation("TDTrailer2")
+
+  @@map("vehicles")
+}
+
+model VehicleMaintenance {
+  id          String    @id @default(uuid())
+  vehicleId   String
+  vehicle     Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  date        DateTime?
+  km          Float?
+  description String?
+  createdAt   DateTime  @default(now())
+
+  @@map("vehicle_maintenances")
+}
+
+model VehicleSpecification {
+  id            String  @id @default(uuid())
+  vehicleId     String
+  vehicle       Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  specification String
+  description   String?
+
+  @@map("vehicle_specifications")
+}
+
+model SocialEntity {
+  id               String      @id @default(uuid())
+  accountId        String
+  account          Account     @relation(fields: [accountId], references: [id])
+  fullName         String?
+  document         String?
+  phone            String?
+  taxSituation     String?
+  email            String?
+  entityType       EntityType?
+  businessName     String?
+  taxCode          String?
+  mainContact      String?
+  secondaryContact String?
+  nameMainContact  String?
+  website          String?
+  address          String?
+  locality         String?
+  zipCode          String?
+  province         String?
+  countryCode      String?
+  isActive         Boolean     @default(true)
+  isEmployee       Boolean     @default(false)
+  fileNumber       String?
+  licenseNumber    String?
+  categories       String[]
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  purchaseOrders          PurchaseOrder[]
+  contractsAsProducer     ContractSaleCereal[] @relation("CSCProducer")
+  contractsAsBuyer        ContractSaleCereal[] @relation("CSCBuyer")
+  contractsAsDeliverer    ContractSaleCereal[] @relation("CSCDeliverer")
+  contractsAsBroker       ContractSaleCereal[] @relation("CSCBroker")
+  contractsAsCommission   ContractSaleCereal[] @relation("CSCCommission")
+  exitFieldsAsTransporter ExitField[]          @relation("EFTransporter")
+  exitFieldsAsTrucker     ExitField[]          @relation("EFTrucker")
+  exitFieldsAsHarvester   ExitField[]          @relation("EFHarvester")
+  contractorOrders        WithdrawalOrder[]    @relation("WOContractor")
+
+  @@map("social_entities")
+}
+
+model Stock {
+  id            String        @id @default(uuid())
+  accountId     String
+  account       Account       @relation(fields: [accountId], references: [id])
+  itemType      StockItemType
+  inputId       String?
+  input         Input?        @relation(fields: [inputId], references: [id])
+  cropId        String?
+  crop          Crop?         @relation(fields: [cropId], references: [id])
+  depositId     String?
+  deposit       Deposit?      @relation(fields: [depositId], references: [id])
+  campaignId    String?
+  campaign      Campaign?     @relation(fields: [campaignId], references: [id])
+  fieldId       String?
+  field         Field?        @relation(fields: [fieldId], references: [id])
+  fieldLotId    String?
+  fieldLot      FieldLot?     @relation(fields: [fieldLotId], references: [id])
+  location      String?
+  nroLot        String?
+  currentStock  Float         @default(0)
+  reservedStock Float         @default(0)
+  lastUpdate    DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@map("stocks")
+}
+
+model StockMovement {
+  id              String        @id @default(uuid())
+  accountId       String
+  account         Account       @relation(fields: [accountId], references: [id])
+  movementTypeId  String?
+  movementType    MovementType? @relation(fields: [movementTypeId], references: [id])
+  inputId         String?
+  input           Input?        @relation(fields: [inputId], references: [id])
+  cropId          String?
+  crop            Crop?         @relation(fields: [cropId], references: [id])
+  itemType        StockItemType?
+  userId          String?
+  depositId       String?
+  deposit         Deposit?      @relation(fields: [depositId], references: [id])
+  campaignId      String?
+  campaign        Campaign?     @relation(fields: [campaignId], references: [id])
+  location        String?
+  nroLot          String?
+  creationDate    DateTime?
+  dueDate         DateTime?
+  isIncome        Boolean       @default(false)
+  detail          String?
+  operationDate   DateTime?
+  amount          Float         @default(0)
+  voucher         String?
+  currency        CurrencyCode?
+  totalValue      Float?
+  hours           String?
+  unitMeasurement String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("stock_movements")
+}
+
+model CropMovement {
+  id         String         @id @default(uuid())
+  accountId  String
+  account    Account        @relation(fields: [accountId], references: [id])
+  depositId  String?
+  deposit    Deposit?       @relation(fields: [depositId], references: [id])
+  cropId     String
+  crop       Crop           @relation(fields: [cropId], references: [id])
+  campaignId String?
+  campaign   Campaign?      @relation(fields: [campaignId], references: [id])
+  fieldId    String?
+  field      Field?         @relation(fields: [fieldId], references: [id])
+  lotId      String?
+  lot        FieldLot?      @relation(fields: [lotId], references: [id])
+  zafra      String?
+  direction  InOutDirection
+  date       DateTime?
+  movement   String?
+  detail     String?
+  amountKg   Float          @default(0)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@map("crop_movements")
+}
+
+model CropDeposit {
+  id              String    @id @default(uuid())
+  accountId       String
+  account         Account   @relation(fields: [accountId], references: [id])
+  campaignId      String?
+  campaign        Campaign? @relation(fields: [campaignId], references: [id])
+  cropId          String
+  crop            Crop      @relation(fields: [cropId], references: [id])
+  depositId       String?
+  deposit         Deposit?  @relation(fields: [depositId], references: [id])
+  fieldId         String?
+  field           Field?    @relation(fields: [fieldId], references: [id])
+  lotId           String?
+  lot             FieldLot? @relation(fields: [lotId], references: [id])
+  zafra           String?
+  location        String?
+  currentStockKg  Float     @default(0)
+  reservedStockKg Float     @default(0)
+  currentStock    Float     @default(0)
+  committedStock  Float     @default(0)
+  deliveredStock  Float     @default(0)
+  lastUpdate      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("crop_deposits")
+}
+
+model ExitField {
+  id                    String             @id @default(uuid())
+  accountId             String
+  account               Account            @relation(fields: [accountId], references: [id])
+  campaignId            String?
+  campaign              Campaign?          @relation(fields: [campaignId], references: [id])
+  fieldId               String?
+  field                 Field?             @relation(fields: [fieldId], references: [id])
+  lotId                 String?
+  lot                   FieldLot?          @relation(fields: [lotId], references: [id])
+  cropId                String?
+  crop                  Crop?              @relation(fields: [cropId], references: [id])
+  depositId             String?
+  deposit               Deposit?           @relation(fields: [depositId], references: [id])
+  vehicleId             String?
+  vehicle               Vehicle?           @relation("ExitFieldChasis", fields: [vehicleId], references: [id])
+  truckTrailerId        String?
+  truckTrailer          Vehicle?           @relation("ExitFieldTrailer", fields: [truckTrailerId], references: [id])
+  transportId           String?
+  transporter           SocialEntity?      @relation("EFTransporter", fields: [transportId], references: [id])
+  truckerId             String?
+  trucker               SocialEntity?      @relation("EFTrucker", fields: [truckerId], references: [id])
+  harvesterId           String?
+  harvester             SocialEntity?      @relation("EFHarvester", fields: [harvesterId], references: [id])
+  destinationId         String?
+  destination           OriginDestination? @relation(fields: [destinationId], references: [id])
+  zafra                 String?
+  ticket                String?
+  transportDocumentRef  String?
+  grossWeight           Float?
+  tareWeight            Float?
+  netWeight             Float?
+  location              String?
+  additionalInformation String?
+  humidityPercentage    Float?
+  mermaPercentage       Float?
+  volatilePercentage    Float?
+  otherPercentage       Float?
+  totalMerma            Float?
+  kgNet                 Float?
+  creationDate          DateTime?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  transportDocuments TransportDocument[]
+
+  @@map("exit_fields")
+}
+
+model WithdrawalOrder {
+  id              String              @id @default(uuid())
+  accountId       String
+  account         Account             @relation(fields: [accountId], references: [id])
+  campaignId      String?
+  campaign        Campaign?           @relation(fields: [campaignId], references: [id])
+  contractorId    String?
+  contractor      SocialEntity?       @relation("WOContractor", fields: [contractorId], references: [id])
+  orderType       WithdrawalOrderType @default(MANUAL)
+  orderNumber     String?
+  reason          String?
+  withdrawId      String?
+  unitMeasurement String?
+  zafra           String?
+  cropData        Json?
+  labor           String?
+  laborNro        String?
+  state           WithdrawalState     @default(PENDING)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  depositSupplyOrders DepositSupplyOrder[]
+
+  @@map("withdrawal_orders")
+}
+
+model DepositSupplyOrder {
+  id                String           @id @default(uuid())
+  accountId         String
+  account           Account          @relation(fields: [accountId], references: [id])
+  withdrawalOrderId String?
+  withdrawalOrder   WithdrawalOrder? @relation(fields: [withdrawalOrderId], references: [id])
+  depositId         String?
+  deposit           Deposit?         @relation(fields: [depositId], references: [id])
+  inputId           String?
+  input             Input?           @relation(fields: [inputId], references: [id])
+  orderNumber       String?
+  location          String?
+  nroLot            String?
+  withdrawalAmount  Float            @default(0)
+  originalAmount    Float            @default(0)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  withdrawals DepositSupplyWithdrawal[]
+
+  @@map("deposit_supply_orders")
+}
+
+model DepositSupplyWithdrawal {
+  id                   String             @id @default(uuid())
+  accountId            String
+  depositSupplyOrderId String
+  depositSupplyOrder   DepositSupplyOrder @relation(fields: [depositSupplyOrderId], references: [id])
+  orderNumber          String?
+  withdrawalDate       DateTime?
+  amount               Float              @default(0)
+  createdAt            DateTime           @default(now())
+
+  @@map("deposit_supply_withdrawals")
+}
+
+model Numerator {
+  id            String        @id @default(uuid())
+  accountId     String
+  account       Account       @relation(fields: [accountId], references: [id])
+  numeratorType NumeratorType
+  lastNumerator Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([accountId, numeratorType])
+  @@map("numerators")
+}
+
+model OriginDestination {
+  id            String   @id @default(uuid())
+  accountId     String
+  account       Account  @relation(fields: [accountId], references: [id])
+  name          String
+  lat           Float?
+  lng           Float?
+  isProcedure   Boolean  @default(false)
+  isDestination Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  contractSaleCereals ContractSaleCereal[]
+  exitFields          ExitField[]
+
+  @@map("origin_destinations")
+}
+
+model LaborService {
+  id          String   @id @default(uuid())
+  accountId   String
+  account     Account  @relation(fields: [accountId], references: [id])
+  service     String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("labor_services")
+}
+
+model PurchaseOrder {
+  id              String        @id @default(uuid())
+  accountId       String
+  account         Account       @relation(fields: [accountId], references: [id])
+  businessId      String?
+  business        SocialEntity? @relation(fields: [businessId], references: [id])
+  orderNumber     String?
+  businessName    String?
+  businessLogo    String?
+  address         String?
+  locality        String?
+  zipCode         String?
+  countryCode     String?
+  contact         String?
+  commercialTerms String?
+  subtotal        Float?
+  taxPercentage   Float?
+  taxValue        Float?
+  otherPercentage Float?
+  otherValue      Float?
+  totalValue      Float?
+  sent            Boolean   @default(false)
+  creationDate    DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  items PurchaseOrderItem[]
+
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              String        @id @default(uuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  inputId         String?
+  input           Input?        @relation(fields: [inputId], references: [id])
+  supplyAmount    Float?
+  unitMeasurement String?
+  unitPrice       Float?
+  createdAt       DateTime      @default(now())
+
+  @@map("purchase_order_items")
+}
+
+model ProductiveUnit {
+  id          String   @id @default(uuid())
+  accountId   String
+  account     Account  @relation(fields: [accountId], references: [id])
+  units       String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  fields ProductiveUnitField[]
+
+  @@map("productive_units")
+}
+
+model ProductiveUnitField {
+  id               String         @id @default(uuid())
+  productiveUnitId String
+  productiveUnit   ProductiveUnit @relation(fields: [productiveUnitId], references: [id], onDelete: Cascade)
+  fieldId          String?
+  field            Field?         @relation(fields: [fieldId], references: [id])
+  lotId            String?
+  lot              FieldLot?      @relation(fields: [lotId], references: [id])
+  fieldName        String?
+  hectares         Float?
+  createdAt        DateTime       @default(now())
+
+  @@map("productive_unit_fields")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Cereals module
+// ═══════════════════════════════════════════════════════════════════════════
+
+model ContractSaleCereal {
+  id                        String             @id @default(uuid())
+  accountId                 String
+  account                   Account            @relation(fields: [accountId], references: [id])
+  campaignId                String?
+  campaign                  Campaign?          @relation(fields: [campaignId], references: [id])
+  companyId                 String?
+  company                   Company?           @relation(fields: [companyId], references: [id])
+  cropId                    String?
+  crop                      Crop?              @relation(fields: [cropId], references: [id])
+  producerId                String?
+  producer                  SocialEntity?      @relation("CSCProducer", fields: [producerId], references: [id])
+  buyerId                   String?
+  buyer                     SocialEntity?      @relation("CSCBuyer", fields: [buyerId], references: [id])
+  destinationId             String?
+  destination               OriginDestination? @relation(fields: [destinationId], references: [id])
+  delivererId               String?
+  deliverer                 SocialEntity?      @relation("CSCDeliverer", fields: [delivererId], references: [id])
+  brokerId                  String?
+  broker                    SocialEntity?      @relation("CSCBroker", fields: [brokerId], references: [id])
+  commissionAgentId         String?
+  commissionAgent           SocialEntity?      @relation("CSCCommission", fields: [commissionAgentId], references: [id])
+  contractSaleNumber        String?
+  brokerPercentage          Float?
+  brokerAmountValue         Float?
+  commissionAgentPercentage Float?
+  commissionAgentAmountValue Float?
+  condition                 String?
+  paymentMethod             String?
+  isOpenContract            Boolean            @default(false)
+  dateCreated               DateTime?
+  kg                        Float?
+  kms                       Float?
+  quintalQuote              Float?
+  valueQuote                Float?
+  usdQuote                  Float?
+  valueUsdQuote             Float?
+  currency                  CurrencyCode?
+  amountValue               Float?
+  kgDelivered               Float?
+  valueCollected            Float?
+  contractType              String?
+  status                    String?
+  createdAt                 DateTime           @default(now())
+  updatedAt                 DateTime           @updatedAt
+
+  deliveryDates      ContractDeliveryDate[]
+  transportDocuments TransportDocument[]
+
+  @@map("contract_sale_cereals")
+}
+
+model ContractDeliveryDate {
+  id           String             @id @default(uuid())
+  contractId   String
+  contract     ContractSaleCereal @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  deliveryDate DateTime?
+  kg           Float?
+  deliveredKg  Float?
+  isCompleted  Boolean            @default(false)
+  dateCreated  DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@map("contract_delivery_dates")
+}
+
+model TransportDocument {
+  id                      String              @id @default(uuid())
+  accountId               String
+  account                 Account             @relation(fields: [accountId], references: [id])
+  campaignId              String?
+  campaign                Campaign?           @relation(fields: [campaignId], references: [id])
+  contractId              String?
+  contract                ContractSaleCereal? @relation(fields: [contractId], references: [id])
+  exitFieldId             String?
+  exitField               ExitField?          @relation(fields: [exitFieldId], references: [id])
+  vehicleChasisId         String?
+  vehicleChasis           Vehicle?            @relation("TDChasis", fields: [vehicleChasisId], references: [id])
+  vehicleTrailer1Id       String?
+  vehicleTrailer1         Vehicle?            @relation("TDTrailer1", fields: [vehicleTrailer1Id], references: [id])
+  vehicleTrailer2Id       String?
+  vehicleTrailer2         Vehicle?            @relation("TDTrailer2", fields: [vehicleTrailer2Id], references: [id])
+  billNumber              String?
+  issueDate               DateTime?
+  expirationDate          DateTime?
+  ctgNumber               String?
+  tariff                  Float?
+  generatorTaxCode        String?
+  estimatedKg             Float?
+  grossKg                 Float?
+  taraKg                  Float?
+  netKg                   Float?
+  transporterTaxCode      String?
+  transporterBusinessName String?
+  driverTaxCode           String?
+  kmToTravel              Float?
+  freightType             String?
+  referenceRate           Float?
+  departureDate           DateTime?
+  contractSaleNumber      String?
+  status                  String?
+  fileName                String?
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+
+  certificateLinks CertificateDepositTransport[]
+
+  @@map("transport_documents")
+}
+
+model CertificateDeposit {
+  id                      String    @id @default(uuid())
+  accountId               String
+  account                 Account   @relation(fields: [accountId], references: [id])
+  campaignId              String?
+  campaign                Campaign? @relation(fields: [campaignId], references: [id])
+  cropId                  String?
+  crop                    Crop?     @relation(fields: [cropId], references: [id])
+  certificateFile         String?
+  analysisNumber          String?
+  grade                   String?
+  electronicCertification Json?
+  depositary              Json?
+  depositor               Json?
+  grossWeight             Float?
+  netWeight               Float?
+  mermaVolatile           Float?
+  mermaDrying             Float?
+  mermaScreening          Float?
+  services                Json?
+  creationDate            DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  transportLinks CertificateDepositTransport[]
+
+  @@map("certificate_deposits")
+}
+
+model CertificateDepositTransport {
+  id                  String             @id @default(uuid())
+  certificateId       String
+  certificate         CertificateDeposit @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+  transportDocumentId String
+  transportDocument   TransportDocument  @relation(fields: [transportDocumentId], references: [id])
+  certificateNumber   String?
+  billNumber          String?
+  billDate            DateTime?
+  netKg               Float?
+  mermaScreeningKg    Float?
+  screeningRate       Float?
+  screeningAmount     Float?
+  humidityDrying      Float?
+  mermaDryingKg       Float?
+  dryingRate          Float?
+  dryingAmount        Float?
+  createdAt           DateTime           @default(now())
+
+  @@map("certificate_deposit_transports")
+}
+
+model CampaignExpense {
+  id              String    @id @default(uuid())
+  accountId       String
+  account         Account   @relation(fields: [accountId], references: [id])
+  campaignId      String?
+  campaign        Campaign? @relation(fields: [campaignId], references: [id])
+  fieldId         String?
+  field           Field?    @relation(fields: [fieldId], references: [id])
+  lotId           String?
+  lot             FieldLot? @relation(fields: [lotId], references: [id])
+  cropId          String?
+  crop            Crop?     @relation(fields: [cropId], references: [id])
+  hectares        Float?
+  campaignName    String?
+  zafra           String?
+  fieldName       String?
+  lotName         String?
+  cropName        String?
+  altCurrency     String?
+  altCurrencyRate Float?
+  isClosed        Boolean   @default(false)
+  supplyLabors    Json?
+  harvestLine     Json?
+  serviceLabors   Json?
+  machineryLabors Json?
+  expenseDetails  Json?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("campaign_expenses")
+}

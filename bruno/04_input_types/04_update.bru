@@ -1,0 +1,21 @@
+meta {
+  name: Update InputType
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/input-types/{{inputTypeId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "phytosanitary": true
+  }
+}

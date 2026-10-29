@@ -1,0 +1,27 @@
+meta {
+  name: Create Campaign
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/campaigns
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "accountId": "{{accountId}}",
+    "fieldId": "{{fieldId}}",
+    "name": "Campaña 2026/2027",
+    "zafra": "2026/27",
+    "startDate": "2026-10-01",
+    "state": "ACTIVE",
+    "lotBranchMode": "INDEPENDENT"
+  }
+}

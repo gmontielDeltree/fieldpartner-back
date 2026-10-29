@@ -1,0 +1,15 @@
+meta {
+  name: List Deposits
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/deposits
+  body: none
+  auth: none
+}
+
+params:query {
+  accountId: {{accountId}}
+}

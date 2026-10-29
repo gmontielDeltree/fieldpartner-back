@@ -1,0 +1,28 @@
+meta {
+  name: Create Crop
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/crops
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "descriptionES": "Soja",
+    "descriptionPT": "Soja",
+    "descriptionEN": "Soybean",
+    "cropType": "OILSEED",
+    "sowing": true,
+    "application": true,
+    "germination": true,
+    "harvest": true
+  }
+}

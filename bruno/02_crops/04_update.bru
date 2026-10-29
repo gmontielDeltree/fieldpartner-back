@@ -1,0 +1,21 @@
+meta {
+  name: Update Crop
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/crops/{{cropId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "variety": "DM 4615"
+  }
+}

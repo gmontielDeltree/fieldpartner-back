@@ -1,0 +1,21 @@
+meta {
+  name: Update FieldLot
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/field-lots/{{fieldLotId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "hectares": 135
+  }
+}

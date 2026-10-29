@@ -1,0 +1,21 @@
+meta {
+  name: Update Zone
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/zones/{{zoneId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "description": "Zona de producción norte - actualizado"
+  }
+}

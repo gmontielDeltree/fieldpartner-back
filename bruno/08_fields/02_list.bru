@@ -1,0 +1,15 @@
+meta {
+  name: List Fields
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/fields
+  body: none
+  auth: none
+}
+
+params:query {
+  accountId: {{accountId}}
+}

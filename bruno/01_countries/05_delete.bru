@@ -1,0 +1,11 @@
+meta {
+  name: Delete Country
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{baseUrl}}/countries/{{countryId}}
+  body: none
+  auth: none
+}

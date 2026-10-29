@@ -1,0 +1,33 @@
+meta {
+  name: Create Input
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/inputs
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "accountId": "{{accountId}}",
+    "name": "Roundup Max",
+    "description": "Herbicida sistémico",
+    "brand": "Monsanto",
+    "unitMeasurement": "L",
+    "activePrincipal": "Glifosato",
+    "minimumDose": 1.5,
+    "maximumDose": 4.0,
+    "recommendedDose": 2.5,
+    "labors": ["APPLICATION"],
+    "inputTypeId": 1,
+    "categoryId": "{{categoryId}}",
+    "isDefault": false
+  }
+}

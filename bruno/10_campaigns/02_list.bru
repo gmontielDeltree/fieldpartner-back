@@ -1,0 +1,16 @@
+meta {
+  name: List Campaigns
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/campaigns
+  body: none
+  auth: none
+}
+
+params:query {
+  accountId: {{accountId}}
+  ~state: ACTIVE
+}

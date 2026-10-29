@@ -1,0 +1,52 @@
+meta {
+  name: Create Account (Category A)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/accounts
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "category": "A",
+    "denomination": "Establecimiento Don Julio",
+    "countryCode": "AR",
+    "status": "ACTIVE",
+    "maxHectares": 5000,
+    "maxFields": 20,
+    "company": {
+      "fantasyName": "Don Julio S.A.",
+      "socialReason": "Don Julio Sociedad Anónima",
+      "tributaryCode": "30-12345678-9",
+      "address": "Av. del Campo 1234, Buenos Aires",
+      "phone": "+54 11 4567-8900",
+      "email": "admin@donjulio.com.ar",
+      "locality": "Buenos Aires",
+      "province": "Buenos Aires",
+      "zipCode": "1000",
+      "fiscalSituation": "Responsable Inscripto"
+    },
+    "licence": {
+      "licenceTypeId": "ltype-c",
+      "startDate": "2026-01-01",
+      "endDate": "2026-12-31",
+      "activeUsersAllowed": 10,
+      "amountLicencesAllowed": 5
+    },
+    "user": {
+      "email": "german_montiel96@hotmail.com",
+      "username": "german_montiel",
+      "password": "Fieldpartner2026!",
+      "language": "es",
+      "photoUrl": "https://example.com/photos/german_montiel.jpg"
+    }
+  }
+}

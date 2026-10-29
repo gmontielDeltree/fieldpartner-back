@@ -1,0 +1,22 @@
+meta {
+  name: Update Campaign
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/campaigns/{{campaignId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "state": "ACTIVE",
+    "endDate": "2027-05-31"
+  }
+}

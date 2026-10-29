@@ -1,0 +1,15 @@
+meta {
+  name: List FieldLots
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/field-lots
+  body: none
+  auth: none
+}
+
+params:query {
+  fieldId: {{fieldId}}
+}

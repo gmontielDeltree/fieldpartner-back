@@ -1,0 +1,24 @@
+meta {
+  name: Create FieldLot
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/field-lots
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "fieldId": "{{fieldId}}",
+    "name": "Lote 1",
+    "hectares": 120,
+    "lotType": "PRODUCTIVE"
+  }
+}
