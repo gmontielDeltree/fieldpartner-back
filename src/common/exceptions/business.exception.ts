@@ -10,6 +10,7 @@ export enum BusinessErrorCode {
   ACCOUNT_INACTIVE           = 'ACCOUNT_INACTIVE',
   ACCOUNT_SUSPENDED          = 'ACCOUNT_SUSPENDED',
   ACCOUNT_NOT_FOUND          = 'ACCOUNT_NOT_FOUND',
+  ACCOUNT_CHANNEL_NOT_ALLOWED = 'ACCOUNT_CHANNEL_NOT_ALLOWED',
 
   // ── User / Registration ───────────────────────────────────────────────────
   USER_NOT_FOUND             = 'USER_NOT_FOUND',

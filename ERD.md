@@ -61,7 +61,8 @@ CANCELLED CANCELLED
 
 
         UserRole {
-            ADMIN ADMIN
+            GENERAL_ADMIN GENERAL_ADMIN
+ADMIN ADMIN
 USER USER
         }
     
@@ -287,7 +288,6 @@ EUR EUR
     String countryCode 
     CurrencyCode currency 
     AccountStatus status 
-    String accountReference "❓"
     String licenceNumber "❓"
     Boolean isLicenceMultipleCountry 
     Int maxHectares 

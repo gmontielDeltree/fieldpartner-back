@@ -64,6 +64,7 @@ enum UserState {
 }
 
 enum UserRole {
+  GENERAL_ADMIN
   ADMIN
   USER
 }
@@ -311,7 +312,6 @@ model Account {
   countryCode              String
   currency                 CurrencyCode
   status                   AccountStatus   @default(PENDING)
-  accountReference         String?
   licenceNumber            String?
   isLicenceMultipleCountry Boolean         @default(false)
   maxHectares              Int             @default(0)

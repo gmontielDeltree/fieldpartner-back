@@ -1,13 +1,14 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { CognitoModule } from '../cognito/cognito.module';
+import { AuthModule } from '../auth/auth.module';
 import { AccountController } from './account.controller';
 import { AccountRepository } from './account.repository';
 import { AccountService } from './account.service';
 import { AccountBusiness } from './businessLogic/account.business';
 
 @Module({
-  imports: [PrismaModule, CognitoModule],
+  imports: [PrismaModule, CognitoModule, AuthModule],
   controllers: [AccountController],
   providers: [AccountService, AccountRepository, AccountBusiness],
   exports: [AccountService],

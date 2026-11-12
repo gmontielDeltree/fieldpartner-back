@@ -3,7 +3,7 @@ import {
   IsInt, Min, IsEmail, IsDateString, ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { AccountCategory, AccountStatus, UserRole } from '@prisma/client';
+import { AccountCategory, AccountStatus } from '@prisma/client';
 
 export class CreateCompanyDto {
   @IsString() @IsNotEmpty() fantasyName: string;
@@ -43,8 +43,8 @@ export class CreateAdminUserDto {
   @IsString() @IsNotEmpty()
   language: string;
 
-  @IsOptional() @IsEnum(UserRole)
-  role?: UserRole;
+  // NOTE: `role` is intentionally NOT accepted from the client — the account-creation
+  // user is always the account ADMIN, assigned server-side. Never trust roles from the body.
 
   // URL of the user's profile photo — stored in Cognito `picture` attribute
   @IsOptional() @IsString()
@@ -67,15 +67,12 @@ export class CreateAccountDto {
   status?: AccountStatus;
 
   @IsOptional() @IsString()
-  accountReference?: string;
-
-  @IsOptional() @IsString()
   licenceNumber?: string;
 
   @IsOptional() @IsBoolean()
   isLicenceMultipleCountry?: boolean;
 
-  @IsOptional() @IsInt() @Min(0)
+  @IsOptional() @IsInt() @Min(1)
   maxHectares?: number;
 
   @IsOptional() @IsInt() @Min(0)

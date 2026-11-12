@@ -6,6 +6,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CognitoService } from '../../cognito/cognito.service';
 import { CreateAccountDto } from '../dto/create-account.dto';
 import { UpdateCountersDto } from '../dto/update-counters.dto';
+import { ACCOUNT_DETAIL_SELECT, toAccountDetail } from '../dto/account-detail.dto';
 
 @Injectable()
 export class AccountBusiness {
@@ -27,9 +28,16 @@ export class AccountBusiness {
     }
 
     if (dto.category === AccountCategory.A) {
-      if (!dto.company)  throw new BadRequestException('company is required for Category A accounts');
-      if (!dto.licence)  throw new BadRequestException('licence is required for Category A accounts');
-      if (!dto.user)     throw new BadRequestException('user is required for Category A accounts');
+      if (!dto.company) throw new BadRequestException('company is required for Category A accounts');
+      if (!dto.licence) throw new BadRequestException('licence is required for Category A accounts');
+      if (!dto.user)    throw new BadRequestException('user is required for Category A accounts');
+    }
+
+    if (dto.category === AccountCategory.B || dto.category === AccountCategory.C) {
+      if (!dto.licence) throw new BadRequestException('licence is required for Category B/C accounts');
+      if (!dto.user)    throw new BadRequestException('user is required for Category B/C accounts');
+      if (!dto.maxHectares || dto.maxHectares <= 0)
+        throw new BadRequestException('maxHectares is required and must be > 0 for Category B/C accounts');
     }
 
     // Pre-check: fail fast if the email already exists in the DB.
@@ -53,9 +61,9 @@ export class AccountBusiness {
     // If Cognito fails (email duplicado, password inválida, etc.) the transaction never starts.
     // If the DB fails after Cognito succeeds, we delete the Cognito user as compensating action.
     let cognitoId: string | undefined;
-    if (dto.category === AccountCategory.A) {
+    if (dto.user) {
       const cognitoResult = await this.cognito.registerAdminUser({
-        email: dto.user.email,
+        email:    dto.user.email,
         username: dto.user.username,
         password: dto.user.password,
         language: dto.user.language,
@@ -73,7 +81,6 @@ export class AccountBusiness {
             countryCode: dto.countryCode,
             currency: country.currency as CurrencyCode,
             status: dto.status ?? AccountStatus.ACTIVE,
-            accountReference: dto.accountReference,
             licenceNumber: dto.licenceNumber,
             isLicenceMultipleCountry: dto.isLicenceMultipleCountry ?? false,
             maxHectares: dto.maxHectares ?? 0,
@@ -83,6 +90,36 @@ export class AccountBusiness {
             countLicences: dto.category === AccountCategory.A ? 1 : 0,
           },
         });
+
+        if (dto.category === AccountCategory.B || dto.category === AccountCategory.C) {
+          const licence = await tx.licence.create({
+            data: {
+              accountId:             account.id,
+              licenceTypeId:         dto.licence.licenceTypeId,
+              startDate:             new Date(dto.licence.startDate),
+              endDate:               new Date(dto.licence.endDate),
+              activeUsersAllowed:    dto.licence.activeUsersAllowed,
+              amountLicencesAllowed: dto.licence.amountLicencesAllowed,
+              countryCode:           dto.countryCode,
+              status:                LicenceStatus.ACTIVE,
+            },
+          });
+
+          await tx.user.create({
+            data: {
+              licenceId:  licence.id,
+              cognitoId:  cognitoId,
+              email:      dto.user.email,
+              username:   dto.user.username,
+              language:   dto.user.language,
+              role:       UserRole.ADMIN,
+              isAdmin:    true,
+              currency:   country.currency as CurrencyCode,
+              photoName:  dto.user.photoUrl ?? '',
+              state:      UserState.PENDING,
+            },
+          });
+        }
 
         if (dto.category === AccountCategory.A) {
           const licence = await tx.licence.create({
@@ -142,7 +179,7 @@ export class AccountBusiness {
               email: dto.user.email,
               username: dto.user.username,
               language: dto.user.language,
-              role: dto.user.role ?? UserRole.ADMIN,
+              role: UserRole.ADMIN,
               isAdmin: true,
               currency: country.currency as CurrencyCode,
               photoName: dto.user.photoUrl ?? '',
@@ -151,14 +188,11 @@ export class AccountBusiness {
           });
         }
 
-        return tx.account.findUnique({
+        const created = await tx.account.findUnique({
           where: { id: account.id },
-          include: {
-            company: true,
-            licences: { include: { licenceType: true, users: true } },
-            contractCorporate: true,
-          },
+          select: ACCOUNT_DETAIL_SELECT,
         });
+        return toAccountDetail(created!);
       });
     } catch (error) {
       // DB failed — delete the Cognito user to avoid orphaned registrations

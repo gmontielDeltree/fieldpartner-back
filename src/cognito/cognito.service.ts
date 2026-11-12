@@ -6,6 +6,7 @@ import {
   CognitoIdentityProviderClient,
   AdminCreateUserCommand,
   AdminDeleteUserCommand,
+  AdminSetUserPasswordCommand,
   AdminUpdateUserAttributesCommand,
   AdminInitiateAuthCommand,
   AdminRespondToAuthChallengeCommand,
@@ -331,6 +332,34 @@ export class CognitoService {
       );
     } catch (error) {
       throw new BadRequestException(`Confirm forgot password failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Admin password reset — sets a permanent password without knowing the current one.
+   * Used by backoffice staff to reset a user's password (not self-service).
+   */
+  async adminSetPassword(email: string, newPassword: string): Promise<void> {
+    try {
+      await this.client.send(
+        new AdminSetUserPasswordCommand({
+          UserPoolId: this.userPoolId,
+          Username:   email,
+          Password:   newPassword,
+          Permanent:  true,
+        }),
+      );
+    } catch (error) {
+      if (error instanceof InvalidPasswordException) {
+        throw new BusinessException(
+          BusinessErrorCode.PASSWORD_POLICY_VIOLATION,
+          'La nueva contraseña no cumple los requisitos de seguridad',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      throw new InternalServerErrorException(
+        `Admin set password failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 

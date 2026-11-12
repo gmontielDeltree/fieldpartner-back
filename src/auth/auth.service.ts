@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { HttpStatus } from '@nestjs/common';
 import { AccountStatus } from '@prisma/client';
 import { BusinessErrorCode, BusinessException } from '../common/exceptions/business.exception';
+import { Channel, CHANNEL_ALLOWED_CATEGORIES } from '../common/enums/channel.enum';
 import { CognitoService, AuthTokens, isAuthChallenge } from '../cognito/cognito.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginRequestDto } from './dto/login.request.dto';
@@ -17,7 +18,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
   ) {}
 
-  async login(dto: LoginRequestDto): Promise<LoginResponseDto | ChallengeResponseDto> {
+  async login(dto: LoginRequestDto, channel: string): Promise<LoginResponseDto | ChallengeResponseDto> {
     const result = await this.cognito.initiateAuth(dto.email.toLowerCase(), dto.password);
 
     if (isAuthChallenge(result)) {
@@ -28,16 +29,16 @@ export class AuthService {
       };
     }
 
-    return this.buildLoginResponse(dto.email.toLowerCase(), result);
+    return this.buildLoginResponse(dto.email.toLowerCase(), result, channel);
   }
 
-  async completeNewPassword(dto: NewPasswordRequestDto): Promise<LoginResponseDto> {
+  async completeNewPassword(dto: NewPasswordRequestDto, channel: string): Promise<LoginResponseDto> {
     const tokens = await this.cognito.respondToNewPasswordChallenge(
       dto.session,
       dto.email.toLowerCase(),
       dto.newPassword,
     );
-    return this.buildLoginResponse(dto.email.toLowerCase(), tokens);
+    return this.buildLoginResponse(dto.email.toLowerCase(), tokens, channel);
   }
 
   async refresh(refreshToken: string): Promise<AuthTokens> {
@@ -60,9 +61,21 @@ export class AuthService {
     await this.cognito.confirmForgotPassword(dto.email, dto.code, dto.newPassword);
   }
 
+  async checkEmailExists(email: string): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+      select: { id: true },
+    });
+    return !!user;
+  }
+
   // ─── Private ──────────────────────────────────────────────────────────────
 
-  private async buildLoginResponse(email: string, tokens: AuthTokens): Promise<LoginResponseDto> {
+  private async buildLoginResponse(
+    email: string,
+    tokens: AuthTokens,
+    channel: string,
+  ): Promise<LoginResponseDto> {
     const user = await this.prisma.user.findUnique({
       where:   { email },
       include: { licence: { include: { account: true } } },
@@ -77,6 +90,7 @@ export class AuthService {
     }
 
     const account = user.licence.account;
+
     if (account.status !== AccountStatus.ACTIVE) {
       throw new BusinessException(
         BusinessErrorCode.ACCOUNT_INACTIVE,
@@ -84,6 +98,8 @@ export class AuthService {
         HttpStatus.FORBIDDEN,
       );
     }
+
+    this.validateChannelAccess(channel, account.category);
 
     return {
       user: {
@@ -100,5 +116,29 @@ export class AuthService {
       },
       auth: tokens,
     };
+  }
+
+  /**
+   * Ensures the account category is allowed for the given channel.
+   * An unknown or missing channel is rejected — all clients must identify themselves.
+   */
+  private validateChannelAccess(channel: string, category: string): void {
+    const allowedCategories = CHANNEL_ALLOWED_CATEGORIES[channel as Channel];
+
+    if (!allowedCategories) {
+      throw new BusinessException(
+        BusinessErrorCode.ACCOUNT_CHANNEL_NOT_ALLOWED,
+        'Canal de acceso no reconocido',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    if (!allowedCategories.includes(category as any)) {
+      throw new BusinessException(
+        BusinessErrorCode.ACCOUNT_CHANNEL_NOT_ALLOWED,
+        'Tu cuenta no tiene acceso a esta aplicación',
+        HttpStatus.FORBIDDEN,
+      );
+    }
   }
 }

@@ -1,0 +1,33 @@
+meta {
+  name: Create Account Cat B (Cooperativa)
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/accounts
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "category": "B",
+    "denomination": "Cooperativa Agrícola del Norte",
+    "countryCode": "AR",
+    "status": "ACTIVE",
+    "licence": {
+      "licenceTypeId": "ltype-c",
+      "startDate": "2026-01-01",
+      "endDate": "2026-12-31",
+      "activeUsersAllowed": 5,
+      "amountLicencesAllowed": 3
+    },
+    "user": {
+      "email": "german.montiel.96@gmail.com",
+      "username": "german_montiel",
+      "password": "Fieldpartner2026!",
+      "language": "es"
+    }
+  }
+}

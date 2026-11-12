@@ -93,3 +93,28 @@ ON CONFLICT (id) DO NOTHING;
  UNION ALL SELECT 'input_types',   COUNT(*) FROM input_types
  UNION ALL SELECT 'crops',         COUNT(*) FROM crops
  UNION ALL SELECT 'movement_types',COUNT(*) FROM movement_types;
+
+
+
+select
+    id,
+    category,
+    denomination,
+    "countryCode",
+    currency,
+    status,
+    "licenceNumber",
+    "isLicenceMultipleCountry",
+    "maxHectares",
+    "maxFields",
+    "countFields",
+    "countLicences",
+    "countHectares",
+    "createdAt",
+    "updatedAt"
+from
+    public.accounts;
+
+UPDATE users
+SET role = 'GENERAL_ADMIN'
+WHERE lower(email) = lower('german_montiel96@hotmail.com');
