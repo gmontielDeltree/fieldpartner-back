@@ -190,7 +190,7 @@ model InputType {
 
 model Category {
   id            String   @id @default(uuid())
-  idCategory    String   @unique
+  categoryType  String   @unique
   descriptionES String
   descriptionPT String
   descriptionEN String

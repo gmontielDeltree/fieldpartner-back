@@ -29,7 +29,7 @@ ON CONFLICT (id) DO NOTHING;
 -- -------------------------
 -- CATEGORIES (catálogo global, sin accountId)
 -- -------------------------
-INSERT INTO categories (id, "idCategory", "descriptionES", "descriptionPT", "descriptionEN", "createdAt", "updatedAt")
+INSERT INTO categories (id, "categoryType", "descriptionES", "descriptionPT", "descriptionEN", "createdAt", "updatedAt")
 VALUES
   ('cat-herb',  'HERBICIDE',    'Herbicida',       'Herbicida',       'Herbicide',       NOW(), NOW()),
   ('cat-fert',  'FERTILIZER',   'Fertilizante',    'Fertilizante',    'Fertilizer',      NOW(), NOW()),

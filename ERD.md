@@ -197,7 +197,7 @@ EUR EUR
 
   "categories" {
     String id "🗝️"
-    String idCategory 
+    String categoryType 
     String descriptionES 
     String descriptionPT 
     String descriptionEN 
