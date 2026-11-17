@@ -291,8 +291,8 @@ model VehicleType {
 
 // Backoffice-managed plan/template catalog (CouchDB: licences collection)
 model LicenceType {
-  id                 String   @id
-  label              String
+  id                 String   @id @default(uuid())
+  label              String   @unique
   description        String?
   systemType         String?
   maximumUnitAllowed Int?
@@ -303,6 +303,24 @@ model LicenceType {
   licences Licence[]
 
   @@map("licence_types")
+}
+
+enum DeviceAvailability {
+  ACTIVE
+  INACTIVE
+}
+
+model TypeDevice {
+  id          String             @id @default(uuid())
+  model       String             @unique
+  description String?
+  family      String?
+  subFamily   String?
+  available   DeviceAvailability @default(INACTIVE)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@map("type_devices")
 }
 
 model Account {

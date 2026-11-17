@@ -158,6 +158,13 @@ CLP CLP
 EUR EUR
         }
     
+
+
+        DeviceAvailability {
+            ACTIVE ACTIVE
+INACTIVE INACTIVE
+        }
+    
   "countries" {
     String id "🗝️"
     String code 
@@ -276,6 +283,18 @@ EUR EUR
     String systemType "❓"
     Int maximumUnitAllowed "❓"
     Int allowedUsersCount "❓"
+    DateTime createdAt 
+    DateTime updatedAt 
+    }
+  
+
+  "type_devices" {
+    String id "🗝️"
+    String model 
+    String description "❓"
+    String family "❓"
+    String subFamily "❓"
+    DeviceAvailability available 
     DateTime createdAt 
     DateTime updatedAt 
     }
@@ -888,6 +907,7 @@ EUR EUR
     "crops" |o--}o "Labor" : "enum:labors"
     "movement_types" |o--|| "StockSumType" : "enum:stockSum"
     "device_types" |o--|| "DeviceStatus" : "enum:status"
+    "type_devices" |o--|| "DeviceAvailability" : "enum:available"
     "accounts" |o--|| "AccountCategory" : "enum:category"
     "accounts" |o--|| "CurrencyCode" : "enum:currency"
     "accounts" |o--|| "AccountStatus" : "enum:status"
