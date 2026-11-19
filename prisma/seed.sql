@@ -18,12 +18,13 @@ ON CONFLICT (id) DO NOTHING;
 
 -- -------------------------
 -- LICENCE TYPES
+-- label = unidad de licenciamiento: C = Campo, L = Licencia, H = Hectárea (ver useLicences en el BO).
 -- -------------------------
 INSERT INTO licence_types (id, label, description, "systemType", "maximumUnitAllowed", "allowedUsersCount", "createdAt", "updatedAt")
 VALUES
-  ('ltype-c', 'C', 'Licencia Básica',    'BASIC',    1,  3,  NOW(), NOW()),
-  ('ltype-l', 'L', 'Licencia Estándar',  'STANDARD', 5,  10, NOW(), NOW()),
-  ('ltype-h', 'H', 'Licencia Profesional','PRO',     20, 50, NOW(), NOW())
+  ('ltype-c', 'C', 'Licencia por campo',     'BASIC',    1,  3,  NOW(), NOW()),
+  ('ltype-l', 'L', 'Licencia única',         'STANDARD', 5,  10, NOW(), NOW()),
+  ('ltype-h', 'H', 'Licencia por hectárea',  'PRO',      20, 50, NOW(), NOW())
 ON CONFLICT (id) DO NOTHING;
 
 -- -------------------------
