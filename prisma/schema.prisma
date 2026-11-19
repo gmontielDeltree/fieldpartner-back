@@ -292,7 +292,7 @@ model VehicleType {
 // Backoffice-managed plan/template catalog (CouchDB: licences collection)
 model LicenceType {
   id                 String   @id @default(uuid())
-  label              String   @unique
+  label              String
   description        String?
   systemType         String?
   maximumUnitAllowed Int?
