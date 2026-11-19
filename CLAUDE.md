@@ -120,5 +120,6 @@ Detectada en la revisión del 2026-11-19 (waves 1–3 del backoffice):
 - ~~**[MEDIA] `users/` no sigue la estructura.**~~ **Corregido (2026-11-19):** queries en
   `users.repository.ts`, alta/edición (Cognito + compensación, scoping por rol) en
   `businessLogic/users.business.ts`; el service quedó como fachada.
-- **[BAJA] Catálogos devuelven la entidad cruda** (incluye `createdAt`/`updatedAt`). Solo
-  `licence-type` tiene DTO de respuesta. Aplicar la regla 2.5 al tocar cada módulo.
+- ~~**[BAJA] Catálogos devuelven la entidad cruda.**~~ **Corregido (2026-11-19):** los 7
+  catálogos usan `<DOMINIO>_SELECT` + `<Model>Dto` (`Prisma.<Model>GetPayload`) en todas las
+  queries del repository.
