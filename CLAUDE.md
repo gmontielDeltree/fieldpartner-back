@@ -115,10 +115,8 @@ Detectada en la revisión del 2026-11-19 (waves 1–3 del backoffice):
   **Pendiente de infraestructura:** crear en el user pool un app client por frontend y cargar
   `AWS_COGNITO_CLIENT_ID_<CANAL>`. Hasta entonces los tokens salen del client compartido, su
   canal es desconocido y `@Channels()` no se aplica (el guard lo avisa en el log).
-- **[A decidir] Quién puede entrar al backoffice.** `CHANNEL_ALLOWED_CATEGORIES` deja loguear
-  por el BO a cuentas A, B y C, así que un usuario común puede obtener un token del canal
-  `backoffice` y `@Channels(Backoffice)` no lo frena: lo frenan los roles. Evaluar limitar el
-  login del BO por rol (por ejemplo, solo `GENERAL_ADMIN`).
+- ~~**[A decidir] Quién puede entrar al backoffice.**~~ **Decidido y aplicado (2026-11-19):**
+  solo `GENERAL_ADMIN` (`CHANNEL_ALLOWED_ROLES` en `channel.enum.ts`, chequeado al loguear).
 - ~~**[MEDIA] `users/` no sigue la estructura.**~~ **Corregido (2026-11-19):** queries en
   `users.repository.ts`, alta/edición (Cognito + compensación, scoping por rol) en
   `businessLogic/users.business.ts`; el service quedó como fachada.

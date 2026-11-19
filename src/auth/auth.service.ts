@@ -1,8 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { HttpStatus } from '@nestjs/common';
-import { AccountCategory, AccountStatus } from '@prisma/client';
+import { AccountCategory, AccountStatus, UserRole } from '@prisma/client';
 import { BusinessErrorCode, BusinessException } from '../common/exceptions/business.exception';
-import { Channel, CHANNEL_ALLOWED_CATEGORIES } from '../common/enums/channel.enum';
+import {
+  Channel,
+  CHANNEL_ALLOWED_CATEGORIES,
+  CHANNEL_ALLOWED_ROLES,
+} from '../common/enums/channel.enum';
 import { CognitoService, AuthTokens, isAuthChallenge } from '../cognito/cognito.service';
 import { parseChannel } from '../cognito/cognito-clients';
 import { PrismaService } from '../prisma/prisma.service';
@@ -113,7 +117,7 @@ export class AuthService {
       );
     }
 
-    this.validateChannelAccess(channel, account.category);
+    this.validateChannelAccess(channel, account.category, user.role);
 
     return {
       user: {
@@ -133,11 +137,19 @@ export class AuthService {
   }
 
   /**
-   * Ensures the account category is allowed for the given channel.
+   * Ensures the account category and the user's role are allowed for the given channel.
    * Unknown or missing channels were already rejected by parseChannel().
    */
-  private validateChannelAccess(channel: Channel, category: AccountCategory): void {
-    if (!CHANNEL_ALLOWED_CATEGORIES[channel].includes(category)) {
+  private validateChannelAccess(
+    channel: Channel,
+    category: AccountCategory,
+    role: UserRole | null,
+  ): void {
+    const allowedRoles = CHANNEL_ALLOWED_ROLES[channel];
+    if (
+      !CHANNEL_ALLOWED_CATEGORIES[channel].includes(category) ||
+      (allowedRoles && (!role || !allowedRoles.includes(role)))
+    ) {
       throw new BusinessException(
         BusinessErrorCode.ACCOUNT_CHANNEL_NOT_ALLOWED,
         'Tu cuenta no tiene acceso a esta aplicación',

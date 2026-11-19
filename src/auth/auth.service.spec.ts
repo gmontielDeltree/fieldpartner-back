@@ -13,11 +13,11 @@ describe('AuthService.login', () => {
 
   const tokens = { accessToken: 'access-tok', refreshToken: 'refresh-tok', expiresIn: 3600 };
 
-  const userWith = (category: string, status = 'ACTIVE') => ({
+  const userWith = (category: string, status = 'ACTIVE', role: string | null = 'GENERAL_ADMIN') => ({
     cognitoId: 'cog-1',
     username: 'owner',
     email: 'owner@test.com',
-    role: 'ADMIN',
+    role,
     language: 'es',
     photoName: null,
     currency: null,
@@ -69,6 +69,20 @@ describe('AuthService.login', () => {
       email: 'owner@test.com',
     });
     expect(prisma.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it.each(['ADMIN', 'USER', null])(
+    'rejects a %s user logging in through the backoffice (GENERAL_ADMIN only)',
+    async (role) => {
+      prisma.user.findUnique.mockResolvedValue(userWith('A', 'ACTIVE', role));
+      await expect(service.login(dto, 'backoffice')).rejects.toBeInstanceOf(BusinessException);
+    },
+  );
+
+  it('lets an account ADMIN log in through fieldpartner_front (no role restriction there)', async () => {
+    prisma.user.findUnique.mockResolvedValue(userWith('A', 'ACTIVE', 'ADMIN'));
+    const result: any = await service.login(dto, 'fieldpartner_front');
+    expect(result.user.role).toBe('ADMIN');
   });
 
   it('rejects a Cat A account logging in through the licence_front channel', async () => {
