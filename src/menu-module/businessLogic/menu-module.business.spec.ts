@@ -96,6 +96,12 @@ describe('MenuModuleBusiness', () => {
       await expect(business.executeUpdate(1, { menuType: MenuType.MODAL })).rejects.toThrow('SIDEBAR');
     });
 
+    it('treats an explicit null menuType as a change (container cannot become permission-only)', async () => {
+      link(1);
+      link(2, 1);
+      await expect(business.executeUpdate(1, { menuType: null })).rejects.toThrow('SIDEBAR');
+    });
+
     it('does not move a container with children to another module', async () => {
       link(1);
       link(2, 1);

@@ -94,6 +94,9 @@ El `JwtAuthGuard` es global (APP_GUARD): todo endpoint exige token salvo `@Publi
   porque los permisos de usuario y el sidebar del front lo referencian; es inmutable (no está
   en el DTO de update).
 - Nombres de modelo: no usar nombres que choquen con NestJS (`Module` → `FeatureModule`).
+- Importación desde CouchDB: `scripts/` (fuera de la estructura de módulos, usan Prisma directo).
+  `npm run import:couch-menus` trae system/modules/menu-modules: dry-run por defecto, `-- --apply`
+  para escribir, idempotente; necesita `COUCHDB_URL` (y `COUCHDB_DB_SUFFIX=_stg` para staging).
 - Si un cambio afecta datos de referencia, actualizar `prisma/seed.sql` (idempotente,
   `ON CONFLICT`).
 

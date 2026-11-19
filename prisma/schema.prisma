@@ -353,22 +353,22 @@ enum MenuType {
 // A menu entry (CouchDB: menu-modules). The numeric id is admin-chosen and stable:
 // user permissions and the frontend sidebar reference it, so it is NOT autoincrement.
 model MenuModule {
-  id        Int      @id
+  id        Int       @id
   moduleId  String
   systemId  String?
   parentId  Int? // submenu container: another SIDEBAR menu of the same module
-  menuType  MenuType
-  order     Int      @default(0)
+  menuType  MenuType? // null = opción solo de permisos (no se muestra en ningún menú)
+  order     Float     @default(0) // module.position, p. ej. 6.03 (formato heredado de CouchDB)
   labelEs   String
   labelEn   String?
   labelPt   String?
   details   String?
   icon      String?
   route     String? // empty = submenu container
-  full      Boolean  @default(true)
-  light     Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  full      Boolean   @default(true)
+  light     Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   module   FeatureModule @relation(fields: [moduleId], references: [id], onDelete: Restrict)
   system   System?       @relation(fields: [systemId], references: [id], onDelete: Restrict)

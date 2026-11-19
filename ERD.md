@@ -320,8 +320,8 @@ INACTIVE INACTIVE
 
   "menu_modules" {
     Int id "🗝️"
-    MenuType menuType 
-    Int order 
+    MenuType menuType "❓"
+    Float order 
     String labelEs 
     String labelEn "❓"
     String labelPt "❓"
@@ -955,7 +955,7 @@ INACTIVE INACTIVE
     "movement_types" |o--|| "StockSumType" : "enum:stockSum"
     "device_types" |o--|| "DeviceStatus" : "enum:status"
     "licence_types" }o--|o "systems" : "system"
-    "menu_modules" |o--|| "MenuType" : "enum:menuType"
+    "menu_modules" |o--|o "MenuType" : "enum:menuType"
     "menu_modules" }o--|| "modules" : "module"
     "menu_modules" }o--|o "systems" : "system"
     "menu_modules" |o--|o "menu_modules" : "parent"

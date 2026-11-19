@@ -4,6 +4,7 @@ import {
   IsEnum,
   IsInt,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
@@ -33,11 +34,14 @@ export class CreateMenuModuleDto {
   @Min(1)
   parentId?: number | null;
 
-  @IsEnum(MenuType)
-  menuType: MenuType;
-
+  /** null/omitted = permission-only option, not shown in any menu. */
   @IsOptional()
-  @IsInt()
+  @IsEnum(MenuType)
+  menuType?: MenuType | null;
+
+  /** module.position, e.g. 6.03. */
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   order?: number;
 

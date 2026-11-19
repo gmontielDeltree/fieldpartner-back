@@ -30,7 +30,8 @@ export class MenuModuleBusiness {
     if (!current) throw new NotFoundException(`MenuModule ${id} not found`);
 
     const moduleId = dto.moduleId ?? current.moduleId;
-    const menuType = dto.menuType ?? current.menuType;
+    // null is a real value (permission-only option), so only undefined keeps the current one.
+    const menuType = dto.menuType !== undefined ? dto.menuType : current.menuType;
     const parentId = dto.parentId !== undefined ? dto.parentId : current.parentId;
 
     if (dto.parentId !== undefined || moduleId !== current.moduleId) {
