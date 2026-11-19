@@ -75,9 +75,14 @@ El `JwtAuthGuard` es global (APP_GUARD): todo endpoint exige token salvo `@Publi
 6. **Unicidad.** `@unique` solo sobre una clave de negocio real. Un campo que clasifica (tipo,
    label, unidad) no es único. Caso real: `LicenceType.label` (C/L/H) se marcó `@unique` por
    error y hubo que revertirlo.
-7. **Throttling** más estricto (`@Throttle`) en endpoints sensibles o costosos (auth, altas
+7. **Canal.** Las operaciones de administración de plataforma (las que exigen
+   `GENERAL_ADMIN`) llevan además `@Channels(Channel.Backoffice)`. El canal de un token sale
+   de su `client_id` **firmado** (un app client de Cognito por frontend, ver `CognitoClients`
+   y `ChannelGuard`), nunca del header `channel`: el header solo elige el app client al
+   loguearse y nadie lo verifica después.
+8. **Throttling** más estricto (`@Throttle`) en endpoints sensibles o costosos (auth, altas
    que llaman a Cognito).
-8. **Secretos** solo desde env; nunca loguear tokens, passwords ni respuestas de Cognito.
+9. **Secretos** solo desde env; nunca loguear tokens, passwords ni respuestas de Cognito.
 
 ## 3. Prisma
 
@@ -103,9 +108,15 @@ Detectada en la revisión del 2026-11-19 (waves 1–3 del backoffice):
   nuevo se agrega a ese spec.
 - **[MEDIA] `npm run lint` no funciona:** el repo no tiene configuración de ESLint
   (`.eslintrc*` / `eslint.config.*`). Hasta agregarla, verificar con build + tests.
-- **[MEDIA] El canal no se valida después del login.** El header `channel` solo se chequea al
-  emitir el token (`/auth/login` y el completado de nueva contraseña). Un token obtenido por `fieldpartner_front` sirve igual contra endpoints del
-  backoffice. Hoy lo mitiga 2.1 (roles); evaluar validar el canal también por request.
+- ~~**[MEDIA] El canal no se valida después del login.**~~ **Corregido en código
+  (2026-11-19):** app client por canal + `ChannelGuard` global + `@Channels()`.
+  **Pendiente de infraestructura:** crear en el user pool un app client por frontend y cargar
+  `AWS_COGNITO_CLIENT_ID_<CANAL>`. Hasta entonces los tokens salen del client compartido, su
+  canal es desconocido y `@Channels()` no se aplica (el guard lo avisa en el log).
+- **[A decidir] Quién puede entrar al backoffice.** `CHANNEL_ALLOWED_CATEGORIES` deja loguear
+  por el BO a cuentas A, B y C, así que un usuario común puede obtener un token del canal
+  `backoffice` y `@Channels(Backoffice)` no lo frena: lo frenan los roles. Evaluar limitar el
+  login del BO por rol (por ejemplo, solo `GENERAL_ADMIN`).
 - ~~**[MEDIA] `users/` no sigue la estructura.**~~ **Corregido (2026-11-19):** queries en
   `users.repository.ts`, alta/edición (Cognito + compensación, scoping por rol) en
   `businessLogic/users.business.ts`; el service quedó como fachada.

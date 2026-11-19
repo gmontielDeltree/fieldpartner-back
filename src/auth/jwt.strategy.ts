@@ -4,6 +4,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { passportJwtSecret } from 'jwks-rsa';
 import { UserRole } from '@prisma/client';
+import { CognitoClients } from '../cognito/cognito-clients';
 
 /**
  * Resolves the caller's role from the **signed** access token, if present:
@@ -24,9 +25,10 @@ function resolveRoleClaim(payload: any): UserRole | undefined {
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  private readonly clientId: string;
-
-  constructor(configService: ConfigService) {
+  constructor(
+    configService: ConfigService,
+    private readonly clients: CognitoClients,
+  ) {
     const region     = configService.getOrThrow<string>('AWS_REGION');
     const userPoolId = configService.getOrThrow<string>('AWS_COGNITO_USER_POOL_ID');
 
@@ -40,20 +42,19 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       issuer:     `https://cognito-idp.${region}.amazonaws.com/${userPoolId}`,
       // No `audience`: Cognito **access tokens** carry `client_id` instead of `aud`.
-      // The client id is asserted manually in validate() below.
+      // The client id is asserted manually in validate() below (one per channel).
       algorithms: ['RS256'],
     });
-
-    this.clientId = configService.getOrThrow<string>('AWS_COGNITO_CLIENT_ID');
   }
 
   /**
    * Validates a Cognito **access token** and attaches { cognitoId, email } to req.user.
    * Access tokens expose `client_id`/`token_use`/`username` (not `aud`/`email`),
    * so we assert the client id and token type here and read identity from `sub`/`username`.
+   * The channel comes from the signed `client_id` (undefined while clients are shared).
    */
   async validate(payload: any) {
-    if (payload.token_use !== 'access' || payload.client_id !== this.clientId) {
+    if (payload.token_use !== 'access' || !this.clients.isKnownClientId(payload.client_id)) {
       throw new UnauthorizedException('Invalid access token');
     }
 
@@ -65,6 +66,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       // The RolesGuard uses them when available and falls back to the DB otherwise.
       role:      resolveRoleClaim(payload),
       accountId: (payload['custom:accountId'] as string | undefined) ?? undefined,
+      channel:   this.clients.channelOf(payload.client_id),
     };
   }
 }

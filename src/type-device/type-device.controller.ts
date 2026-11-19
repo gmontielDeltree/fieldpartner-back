@@ -2,6 +2,8 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@n
 import { UserRole } from '@prisma/client';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { Channels } from '../auth/channels.decorator';
+import { Channel } from '../common/enums/channel.enum';
 import { TypeDeviceService } from './type-device.service';
 import { CreateTypeDeviceDto } from './dto/create-type-device.dto';
 import { UpdateTypeDeviceDto } from './dto/update-type-device.dto';
@@ -13,6 +15,7 @@ export class TypeDeviceController {
 
   @Post()
   @Roles(UserRole.GENERAL_ADMIN)
+  @Channels(Channel.Backoffice)
   create(@Body() dto: CreateTypeDeviceDto) {
     return this.typeDeviceService.create(dto);
   }
@@ -29,12 +32,14 @@ export class TypeDeviceController {
 
   @Patch(':id')
   @Roles(UserRole.GENERAL_ADMIN)
+  @Channels(Channel.Backoffice)
   update(@Param('id') id: string, @Body() dto: UpdateTypeDeviceDto) {
     return this.typeDeviceService.update(id, dto);
   }
 
   @Delete(':id')
   @Roles(UserRole.GENERAL_ADMIN)
+  @Channels(Channel.Backoffice)
   remove(@Param('id') id: string) {
     return this.typeDeviceService.remove(id);
   }

@@ -5,6 +5,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt.guard';
+import { ChannelGuard } from './auth/channel.guard';
 import { CountryModule } from './country/country.module';
 import { CropModule } from './crop/crop.module';
 import { InputTypeModule } from './input-type/input-type.module';
@@ -55,6 +56,8 @@ import { UsersModule } from './users/users.module';
     // Authenticated by default across every controller.
     // Public endpoints must opt out explicitly with @Public().
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    // Then @Channels(): the channel comes from the token's signed client_id, not a header.
+    { provide: APP_GUARD, useClass: ChannelGuard },
   ],
 })
 export class AppModule {}

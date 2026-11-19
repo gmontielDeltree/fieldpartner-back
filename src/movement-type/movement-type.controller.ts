@@ -2,6 +2,8 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@n
 import { UserRole } from '@prisma/client';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { Channels } from '../auth/channels.decorator';
+import { Channel } from '../common/enums/channel.enum';
 import { MovementTypeService } from './movement-type.service';
 import { CreateMovementTypeDto } from './dto/create-movement-type.dto';
 import { UpdateMovementTypeDto } from './dto/update-movement-type.dto';
@@ -13,6 +15,7 @@ export class MovementTypeController {
 
   @Post()
   @Roles(UserRole.GENERAL_ADMIN)
+  @Channels(Channel.Backoffice)
   create(@Body() dto: CreateMovementTypeDto) {
     return this.movementTypeService.create(dto);
   }
@@ -29,12 +32,14 @@ export class MovementTypeController {
 
   @Patch(':id')
   @Roles(UserRole.GENERAL_ADMIN)
+  @Channels(Channel.Backoffice)
   update(@Param('id') id: string, @Body() dto: UpdateMovementTypeDto) {
     return this.movementTypeService.update(id, dto);
   }
 
   @Delete(':id')
   @Roles(UserRole.GENERAL_ADMIN)
+  @Channels(Channel.Backoffice)
   remove(@Param('id') id: string) {
     return this.movementTypeService.remove(id);
   }

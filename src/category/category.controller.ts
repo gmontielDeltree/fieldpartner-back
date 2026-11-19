@@ -2,6 +2,8 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@n
 import { UserRole } from '@prisma/client';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { Channels } from '../auth/channels.decorator';
+import { Channel } from '../common/enums/channel.enum';
 import { CategoryService } from './category.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
@@ -13,6 +15,7 @@ export class CategoryController {
 
   @Post()
   @Roles(UserRole.GENERAL_ADMIN)
+  @Channels(Channel.Backoffice)
   create(@Body() dto: CreateCategoryDto) {
     return this.categoryService.create(dto);
   }
@@ -29,12 +32,14 @@ export class CategoryController {
 
   @Patch(':id')
   @Roles(UserRole.GENERAL_ADMIN)
+  @Channels(Channel.Backoffice)
   update(@Param('id') id: string, @Body() dto: UpdateCategoryDto) {
     return this.categoryService.update(id, dto);
   }
 
   @Delete(':id')
   @Roles(UserRole.GENERAL_ADMIN)
+  @Channels(Channel.Backoffice)
   remove(@Param('id') id: string) {
     return this.categoryService.remove(id);
   }

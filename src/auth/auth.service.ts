@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { HttpStatus } from '@nestjs/common';
-import { AccountStatus } from '@prisma/client';
+import { AccountCategory, AccountStatus } from '@prisma/client';
 import { BusinessErrorCode, BusinessException } from '../common/exceptions/business.exception';
 import { Channel, CHANNEL_ALLOWED_CATEGORIES } from '../common/enums/channel.enum';
 import { CognitoService, AuthTokens, isAuthChallenge } from '../cognito/cognito.service';
+import { parseChannel } from '../cognito/cognito-clients';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginRequestDto } from './dto/login.request.dto';
 import { LoginResponseDto, ChallengeResponseDto } from './dto/login.response.dto';
@@ -18,8 +19,13 @@ export class AuthService {
     private readonly prisma: PrismaService,
   ) {}
 
-  async login(dto: LoginRequestDto, channel: string): Promise<LoginResponseDto | ChallengeResponseDto> {
-    const result = await this.cognito.initiateAuth(dto.email.toLowerCase(), dto.password);
+  /**
+   * The channel header picks the Cognito app client, so it is validated **before** calling
+   * Cognito: the issued token is then bound to that channel through its signed client_id.
+   */
+  async login(dto: LoginRequestDto, channelHeader: string): Promise<LoginResponseDto | ChallengeResponseDto> {
+    const channel = parseChannel(channelHeader);
+    const result = await this.cognito.initiateAuth(dto.email.toLowerCase(), dto.password, channel);
 
     if (isAuthChallenge(result)) {
       return {
@@ -32,17 +38,20 @@ export class AuthService {
     return this.buildLoginResponse(dto.email.toLowerCase(), result, channel);
   }
 
-  async completeNewPassword(dto: NewPasswordRequestDto, channel: string): Promise<LoginResponseDto> {
+  async completeNewPassword(dto: NewPasswordRequestDto, channelHeader: string): Promise<LoginResponseDto> {
+    const channel = parseChannel(channelHeader);
     const tokens = await this.cognito.respondToNewPasswordChallenge(
       dto.session,
       dto.email.toLowerCase(),
       dto.newPassword,
+      channel,
     );
     return this.buildLoginResponse(dto.email.toLowerCase(), tokens, channel);
   }
 
-  async refresh(refreshToken: string): Promise<AuthTokens> {
-    return this.cognito.refreshAccessToken(refreshToken);
+  /** Without a channel header the shared default client is used (legacy clients). */
+  async refresh(refreshToken: string, channelHeader?: string): Promise<AuthTokens> {
+    return this.cognito.refreshAccessToken(refreshToken, parseChannel(channelHeader, false));
   }
 
   async logout(email: string): Promise<void> {
@@ -53,12 +62,17 @@ export class AuthService {
     await this.cognito.changePassword(accessToken, dto.currentPassword, dto.newPassword);
   }
 
-  async forgotPassword(email: string) {
-    return this.cognito.forgotPassword(email);
+  async forgotPassword(email: string, channelHeader?: string) {
+    return this.cognito.forgotPassword(email, parseChannel(channelHeader, false));
   }
 
-  async confirmForgotPassword(dto: ConfirmForgotPasswordRequestDto): Promise<void> {
-    await this.cognito.confirmForgotPassword(dto.email, dto.code, dto.newPassword);
+  async confirmForgotPassword(dto: ConfirmForgotPasswordRequestDto, channelHeader?: string): Promise<void> {
+    await this.cognito.confirmForgotPassword(
+      dto.email,
+      dto.code,
+      dto.newPassword,
+      parseChannel(channelHeader, false),
+    );
   }
 
   async checkEmailExists(email: string): Promise<boolean> {
@@ -74,7 +88,7 @@ export class AuthService {
   private async buildLoginResponse(
     email: string,
     tokens: AuthTokens,
-    channel: string,
+    channel: Channel,
   ): Promise<LoginResponseDto> {
     const user = await this.prisma.user.findUnique({
       where:   { email },
@@ -120,20 +134,10 @@ export class AuthService {
 
   /**
    * Ensures the account category is allowed for the given channel.
-   * An unknown or missing channel is rejected — all clients must identify themselves.
+   * Unknown or missing channels were already rejected by parseChannel().
    */
-  private validateChannelAccess(channel: string, category: string): void {
-    const allowedCategories = CHANNEL_ALLOWED_CATEGORIES[channel as Channel];
-
-    if (!allowedCategories) {
-      throw new BusinessException(
-        BusinessErrorCode.ACCOUNT_CHANNEL_NOT_ALLOWED,
-        'Canal de acceso no reconocido',
-        HttpStatus.FORBIDDEN,
-      );
-    }
-
-    if (!allowedCategories.includes(category as any)) {
+  private validateChannelAccess(channel: Channel, category: AccountCategory): void {
+    if (!CHANNEL_ALLOWED_CATEGORIES[channel].includes(category)) {
       throw new BusinessException(
         BusinessErrorCode.ACCOUNT_CHANNEL_NOT_ALLOWED,
         'Tu cuenta no tiene acceso a esta aplicación',

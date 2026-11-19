@@ -39,8 +39,8 @@ export class AuthController {
 
   @Public()
   @Post('refresh')
-  async refresh(@Body() dto: RefreshTokenRequestDto) {
-    return this.authService.refresh(dto.refreshToken);
+  async refresh(@Headers('channel') channel: string | undefined, @Body() dto: RefreshTokenRequestDto) {
+    return this.authService.refresh(dto.refreshToken, channel);
   }
 
   // Protected by the global JwtAuthGuard (no @Public()).
@@ -61,14 +61,17 @@ export class AuthController {
 
   @Public()
   @Post('forgot-password')
-  async forgotPassword(@Body() dto: ForgotPasswordRequestDto) {
-    return this.authService.forgotPassword(dto.email);
+  async forgotPassword(@Headers('channel') channel: string | undefined, @Body() dto: ForgotPasswordRequestDto) {
+    return this.authService.forgotPassword(dto.email, channel);
   }
 
   @Public()
   @Post('confirm-forgot-password')
-  async confirmForgotPassword(@Body() dto: ConfirmForgotPasswordRequestDto) {
-    await this.authService.confirmForgotPassword(dto);
+  async confirmForgotPassword(
+    @Headers('channel') channel: string | undefined,
+    @Body() dto: ConfirmForgotPasswordRequestDto,
+  ) {
+    await this.authService.confirmForgotPassword(dto, channel);
     return { message: 'Contraseña actualizada exitosamente' };
   }
 

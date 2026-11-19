@@ -15,6 +15,8 @@ import { AccountCategory, AccountStatus, UserRole } from '@prisma/client';
 import { Request } from 'express';
 import { RolesGuard, Caller } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { Channels } from '../auth/channels.decorator';
+import { Channel } from '../common/enums/channel.enum';
 import { AccountService } from './account.service';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { UpdateAccountDto } from './dto/update-account.dto';
@@ -30,12 +32,14 @@ export class AccountController {
 
   @Post()
   @Roles(UserRole.GENERAL_ADMIN)
+  @Channels(Channel.Backoffice)
   create(@Body() dto: CreateAccountDto) {
     return this.accountService.create(dto);
   }
 
   @Get()
   @Roles(UserRole.GENERAL_ADMIN)
+  @Channels(Channel.Backoffice)
   findAll(
     @Query('category') category?: AccountCategory,
     @Query('status') status?: AccountStatus,
@@ -57,18 +61,21 @@ export class AccountController {
 
   @Patch(':id')
   @Roles(UserRole.GENERAL_ADMIN)
+  @Channels(Channel.Backoffice)
   update(@Param('id') id: string, @Body() dto: UpdateAccountDto) {
     return this.accountService.update(id, dto);
   }
 
   @Patch(':id/counters')
   @Roles(UserRole.GENERAL_ADMIN)
+  @Channels(Channel.Backoffice)
   updateCounters(@Param('id') id: string, @Body() dto: UpdateCountersDto) {
     return this.accountService.updateCounters(id, dto);
   }
 
   @Delete(':id')
   @Roles(UserRole.GENERAL_ADMIN)
+  @Channels(Channel.Backoffice)
   remove(@Param('id') id: string) {
     return this.accountService.remove(id);
   }

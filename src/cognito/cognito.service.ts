@@ -22,6 +22,8 @@ import {
   UserNotFoundException,
   AttributeType,
 } from '@aws-sdk/client-cognito-identity-provider';
+import { Channel } from '../common/enums/channel.enum';
+import { CognitoClients } from './cognito-clients';
 
 export interface CognitoRegisterResult {
   cognitoId: string;
@@ -51,7 +53,10 @@ export class CognitoService {
   private readonly userPoolId: string;
   private readonly clientId: string;
 
-  constructor(private readonly config: ConfigService) {
+  constructor(
+    private readonly config: ConfigService,
+    private readonly clients: CognitoClients,
+  ) {
     this.userPoolId = this.config.getOrThrow<string>('AWS_COGNITO_USER_POOL_ID');
     this.clientId   = this.config.getOrThrow<string>('AWS_COGNITO_CLIENT_ID');
 
@@ -62,6 +67,11 @@ export class CognitoService {
         secretAccessKey: this.config.getOrThrow<string>('AWS_SECRETACCESSKEY'),
       },
     });
+  }
+
+  /** App client for the channel; the shared default when no channel is given. */
+  private clientIdFor(channel?: Channel): string {
+    return channel ? this.clients.clientIdFor(channel) : this.clientId;
   }
 
   // ─── Registration ───────────────────────────────────────────────────────────
@@ -143,12 +153,12 @@ export class CognitoService {
    * Initiates auth with ADMIN_USER_PASSWORD_AUTH (server-side, no SRP).
    * Returns tokens on success, or a challenge descriptor when FORCE_CHANGE_PASSWORD.
    */
-  async initiateAuth(email: string, password: string): Promise<AuthResult> {
+  async initiateAuth(email: string, password: string, channel?: Channel): Promise<AuthResult> {
     try {
       const result = await this.client.send(
         new AdminInitiateAuthCommand({
           UserPoolId: this.userPoolId,
-          ClientId:   this.clientId,
+          ClientId:   this.clientIdFor(channel),
           AuthFlow:   'ADMIN_USER_PASSWORD_AUTH',
           AuthParameters: {
             USERNAME: email,
@@ -189,12 +199,13 @@ export class CognitoService {
     session: string,
     email: string,
     newPassword: string,
+    channel?: Channel,
   ): Promise<AuthTokens> {
     try {
       const result = await this.client.send(
         new AdminRespondToAuthChallengeCommand({
           UserPoolId:    this.userPoolId,
-          ClientId:      this.clientId,
+          ClientId:      this.clientIdFor(channel),
           ChallengeName: 'NEW_PASSWORD_REQUIRED',
           Session:       session,
           ChallengeResponses: {
@@ -218,11 +229,12 @@ export class CognitoService {
    * Refreshes the access token using a valid refresh token.
    * Cognito does not always rotate the refresh token, so the original is preserved if absent.
    */
-  async refreshAccessToken(refreshToken: string): Promise<AuthTokens> {
+  async refreshAccessToken(refreshToken: string, channel?: Channel): Promise<AuthTokens> {
     try {
       const result = await this.client.send(
         new InitiateAuthCommand({
-          ClientId: this.clientId,
+          // A refresh token only works with the app client that issued it.
+          ClientId: this.clientIdFor(channel),
           AuthFlow: 'REFRESH_TOKEN_AUTH',
           AuthParameters: {
             REFRESH_TOKEN: refreshToken,
@@ -297,11 +309,14 @@ export class CognitoService {
   }
 
   /** Sends a password reset code to the user's email. */
-  async forgotPassword(email: string): Promise<{ message: string; destination?: string }> {
+  async forgotPassword(
+    email: string,
+    channel?: Channel,
+  ): Promise<{ message: string; destination?: string }> {
     try {
       const result = await this.client.send(
         new ForgotPasswordCommand({
-          ClientId: this.clientId,
+          ClientId: this.clientIdFor(channel),
           Username:  email,
         }),
       );
@@ -320,11 +335,12 @@ export class CognitoService {
     email: string,
     code: string,
     newPassword: string,
+    channel?: Channel,
   ): Promise<void> {
     try {
       await this.client.send(
         new ConfirmForgotPasswordCommand({
-          ClientId:         this.clientId,
+          ClientId:         this.clientIdFor(channel),
           Username:          email,
           ConfirmationCode:  code,
           Password:          newPassword,

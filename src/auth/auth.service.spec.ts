@@ -50,7 +50,8 @@ describe('AuthService.login', () => {
 
     const result: any = await service.login(dto, 'backoffice');
 
-    expect(cognito.initiateAuth).toHaveBeenCalledWith('owner@test.com', 'Secret123!');
+    // The channel selects the Cognito app client the token is issued for.
+    expect(cognito.initiateAuth).toHaveBeenCalledWith('owner@test.com', 'Secret123!', 'backoffice');
     expect(result.auth).toEqual(tokens);
     expect(result.user).toEqual(
       expect.objectContaining({ id: 'cog-1', email: 'owner@test.com', accountId: 'acc-1' }),
@@ -80,6 +81,11 @@ describe('AuthService.login', () => {
     prisma.user.findUnique.mockResolvedValue(userWith('A'));
 
     await expect(service.login(dto, 'bogus_channel')).rejects.toBeInstanceOf(BusinessException);
+    await expect(service.login(dto, undefined as unknown as string)).rejects.toBeInstanceOf(
+      BusinessException,
+    );
+    // Rejected before reaching Cognito: no token is issued for an unknown channel.
+    expect(cognito.initiateAuth).not.toHaveBeenCalled();
   });
 
   it('rejects login when the account is not ACTIVE', async () => {

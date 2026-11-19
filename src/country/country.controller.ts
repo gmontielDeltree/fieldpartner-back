@@ -2,6 +2,8 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@n
 import { UserRole } from '@prisma/client';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { Channels } from '../auth/channels.decorator';
+import { Channel } from '../common/enums/channel.enum';
 import { CountryService } from './country.service';
 import { CreateCountryDto } from './dto/create-country.dto';
 import { UpdateCountryDto } from './dto/update-country.dto';
@@ -13,6 +15,7 @@ export class CountryController {
 
   @Post()
   @Roles(UserRole.GENERAL_ADMIN)
+  @Channels(Channel.Backoffice)
   create(@Body() dto: CreateCountryDto) {
     return this.countryService.create(dto);
   }
@@ -29,12 +32,14 @@ export class CountryController {
 
   @Patch(':id')
   @Roles(UserRole.GENERAL_ADMIN)
+  @Channels(Channel.Backoffice)
   update(@Param('id') id: string, @Body() dto: UpdateCountryDto) {
     return this.countryService.update(id, dto);
   }
 
   @Delete(':id')
   @Roles(UserRole.GENERAL_ADMIN)
+  @Channels(Channel.Backoffice)
   remove(@Param('id') id: string) {
     return this.countryService.remove(id);
   }
