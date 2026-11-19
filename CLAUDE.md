@@ -106,8 +106,10 @@ Detectada en la revisión del 2026-11-19 (waves 1–3 del backoffice):
 - ~~**[ALTA] Catálogos sin `@Roles`.**~~ **Corregido (2026-11-19):** la escritura de los 7
   catálogos exige `GENERAL_ADMIN`; lo cubre `src/auth/catalog-roles.spec.ts`. Todo catálogo
   nuevo se agrega a ese spec.
-- **[MEDIA] `npm run lint` no funciona:** el repo no tiene configuración de ESLint
-  (`.eslintrc*` / `eslint.config.*`). Hasta agregarla, verificar con build + tests.
+- ~~**[MEDIA] `npm run lint` no funciona.**~~ **Corregido (2026-11-19):** `.eslintrc.js`
+  (base NestJS + `@typescript-eslint/recommended`). Quedan 36 warnings, 0 errores:
+  `no-non-null-assertion` (17 en `cognito.service.ts`, respuestas de AWS) y `no-explicit-any`
+  (`jwt.strategy.ts`, `http-exception.filter.ts`, DTOs de field/field-lot, specs). No sumar nuevos.
 - ~~**[MEDIA] El canal no se valida después del login.**~~ **Corregido en código
   (2026-11-19):** app client por canal + `ChannelGuard` global + `@Channels()`.
   **Pendiente de infraestructura:** crear en el user pool un app client por frontend y cargar
