@@ -98,10 +98,11 @@ El `JwtAuthGuard` es global (APP_GUARD): todo endpoint exige token salvo `@Publi
 
 Detectada en la revisión del 2026-11-19 (waves 1–3 del backoffice):
 
-- **[ALTA] Catálogos sin `@Roles`.** `country`, `category`, `crop`, `movement-type`,
-  `input-type`, `licence-type` y `type-device` permiten `POST`/`PATCH`/`DELETE` a **cualquier
-  usuario autenticado** (incluido un usuario de Cat A desde `fieldpartner_front`). Aplicar la
-  regla 2.1.
+- ~~**[ALTA] Catálogos sin `@Roles`.**~~ **Corregido (2026-11-19):** la escritura de los 7
+  catálogos exige `GENERAL_ADMIN`; lo cubre `src/auth/catalog-roles.spec.ts`. Todo catálogo
+  nuevo se agrega a ese spec.
+- **[MEDIA] `npm run lint` no funciona:** el repo no tiene configuración de ESLint
+  (`.eslintrc*` / `eslint.config.*`). Hasta agregarla, verificar con build + tests.
 - **[MEDIA] El canal no se valida después del login.** El header `channel` solo se chequea al
   emitir el token (`/auth/login` y el completado de nueva contraseña). Un token obtenido por `fieldpartner_front` sirve igual contra endpoints del
   backoffice. Hoy lo mitiga 2.1 (roles); evaluar validar el canal también por request.

@@ -1,13 +1,18 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, UseGuards } from '@nestjs/common';
+import { UserRole } from '@prisma/client';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 import { InputTypeService } from './input-type.service';
 import { CreateInputTypeDto } from './dto/create-input-type.dto';
 import { UpdateInputTypeDto } from './dto/update-input-type.dto';
 
+@UseGuards(RolesGuard)
 @Controller('input-types')
 export class InputTypeController {
   constructor(private readonly inputTypeService: InputTypeService) {}
 
   @Post()
+  @Roles(UserRole.GENERAL_ADMIN)
   create(@Body() dto: CreateInputTypeDto) {
     return this.inputTypeService.create(dto);
   }
@@ -23,11 +28,13 @@ export class InputTypeController {
   }
 
   @Patch(':id')
+  @Roles(UserRole.GENERAL_ADMIN)
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateInputTypeDto) {
     return this.inputTypeService.update(id, dto);
   }
 
   @Delete(':id')
+  @Roles(UserRole.GENERAL_ADMIN)
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.inputTypeService.remove(id);
   }
