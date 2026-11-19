@@ -12,11 +12,15 @@ import { MovementTypeController } from '../movement-type/movement-type.controlle
 import { InputTypeController } from '../input-type/input-type.controller';
 import { LicenceTypeController } from '../licence-type/licence-type.controller';
 import { TypeDeviceController } from '../type-device/type-device.controller';
+import { SystemController } from '../system/system.controller';
+import { FeatureModuleController } from '../feature-module/feature-module.controller';
+import { MenuModuleController } from '../menu-module/menu-module.controller';
 
 // @nestjs/mapped-types ships ESM only and Jest runs CommonJS; the update DTOs are
 // irrelevant to authorization metadata, so a pass-through PartialType is enough.
 jest.mock('@nestjs/mapped-types', () => ({
   PartialType: (base: new () => object) => class extends base {},
+  OmitType: (base: new () => object) => class extends base {},
 }));
 
 /**
@@ -31,6 +35,9 @@ const CATALOG_CONTROLLERS = [
   InputTypeController,
   LicenceTypeController,
   TypeDeviceController,
+  SystemController,
+  FeatureModuleController,
+  MenuModuleController,
 ];
 
 describe.each(CATALOG_CONTROLLERS)('%p authorization', (controller) => {

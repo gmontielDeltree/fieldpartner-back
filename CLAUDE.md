@@ -55,7 +55,7 @@ El `JwtAuthGuard` es global (APP_GUARD): todo endpoint exige token salvo `@Publi
 1. **Roles explícitos.** `@UseGuards(RolesGuard)` en el controller y `@Roles(...)` a nivel clase
    y/o método. Ningún endpoint de escritura queda sin `@Roles`.
    - **Catálogos globales** (country, category, crop, movement-type, input-type, licence-type,
-     type-device y los futuros): lectura `GET` para usuarios autenticados; `POST`/`PATCH`/`DELETE`
+     type-device, system, feature-module, menu-module y los futuros): lectura `GET` para usuarios autenticados; `POST`/`PATCH`/`DELETE`
      solo `@Roles(UserRole.GENERAL_ADMIN)`.
    - **Datos de una cuenta** (accounts, users, fields, deposits…): `GENERAL_ADMIN` ve todo;
      `ADMIN` y los usuarios comunes solo lo suyo.
@@ -90,6 +90,10 @@ El `JwtAuthGuard` es global (APP_GUARD): todo endpoint exige token salvo `@Publi
   `prisma/migrations/` (nunca editar una ya aplicada o pusheada) → `npm run prisma:generate`.
 - Ids: `String @id @default(uuid())`, salvo catálogos existentes con `Int autoincrement`
   (`InputType`). El id lo genera la DB; el front no lo envía.
+  **Única excepción:** `MenuModule.id` es un `Int` elegido por el admin (sin autoincrement)
+  porque los permisos de usuario y el sidebar del front lo referencian; es inmutable (no está
+  en el DTO de update).
+- Nombres de modelo: no usar nombres que choquen con NestJS (`Module` → `FeatureModule`).
 - Si un cambio afecta datos de referencia, actualizar `prisma/seed.sql` (idempotente,
   `ON CONFLICT`).
 

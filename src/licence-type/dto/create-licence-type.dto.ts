@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsInt, Min } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsInt, IsUUID, Min } from 'class-validator';
 
 export class CreateLicenceTypeDto {
   @IsString()
@@ -9,9 +9,10 @@ export class CreateLicenceTypeDto {
   @IsString()
   description?: string;
 
+  /** System (product) the licence type belongs to. */
   @IsOptional()
-  @IsString()
-  systemType?: string;
+  @IsUUID()
+  systemId?: string | null;
 
   @IsOptional()
   @IsInt()

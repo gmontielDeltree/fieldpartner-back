@@ -17,14 +17,28 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- -------------------------
+-- SYSTEMS (productos FieldPartner a los que pertenecen licencias y menús)
+-- -------------------------
+INSERT INTO systems (id, code, name, version, "technicalDetails", "createdAt", "updatedAt")
+VALUES
+  ('sys-basic',    'BASIC',    'BASIC',    NULL, NULL, NOW(), NOW()),
+  ('sys-standard', 'STANDARD', 'STANDARD', NULL, NULL, NOW(), NOW()),
+  ('sys-pro',      'PRO',      'PRO',      NULL, NULL, NOW(), NOW())
+ON CONFLICT (code) DO NOTHING;
+
+-- -------------------------
 -- LICENCE TYPES
 -- label = unidad de licenciamiento: C = Campo, L = Licencia, H = Hectárea (ver useLicences en el BO).
+-- "systemId" se resuelve por code: los sistemas pueden venir de la migración con otro id.
 -- -------------------------
-INSERT INTO licence_types (id, label, description, "systemType", "maximumUnitAllowed", "allowedUsersCount", "createdAt", "updatedAt")
-VALUES
-  ('ltype-c', 'C', 'Licencia por campo',     'BASIC',    1,  3,  NOW(), NOW()),
-  ('ltype-l', 'L', 'Licencia única',         'STANDARD', 5,  10, NOW(), NOW()),
-  ('ltype-h', 'H', 'Licencia por hectárea',  'PRO',      20, 50, NOW(), NOW())
+INSERT INTO licence_types (id, label, description, "systemId", "maximumUnitAllowed", "allowedUsersCount", "createdAt", "updatedAt")
+SELECT v.id, v.label, v.description, s.id, v.max_units, v.users, NOW(), NOW()
+FROM (VALUES
+  ('ltype-c', 'C', 'Licencia por campo',    'BASIC',    1,  3),
+  ('ltype-l', 'L', 'Licencia única',        'STANDARD', 5,  10),
+  ('ltype-h', 'H', 'Licencia por hectárea', 'PRO',      20, 50)
+) AS v(id, label, description, system_code, max_units, users)
+LEFT JOIN systems s ON s.code = v.system_code
 ON CONFLICT (id) DO NOTHING;
 
 -- -------------------------

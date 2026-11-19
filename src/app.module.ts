@@ -19,6 +19,9 @@ import { FieldLotModule } from './field-lot/field-lot.module';
 import { CampaignModule } from './campaign/campaign.module';
 import { InputModule } from './input/input.module';
 import { LicenceTypeModule } from './licence-type/licence-type.module';
+import { SystemModule } from './system/system.module';
+import { FeatureModuleModule } from './feature-module/feature-module.module';
+import { MenuModuleModule } from './menu-module/menu-module.module';
 import { TypeDeviceModule } from './type-device/type-device.module';
 import { UsersModule } from './users/users.module';
 
@@ -46,6 +49,9 @@ import { UsersModule } from './users/users.module';
     CampaignModule,
     InputModule,
     LicenceTypeModule,
+    SystemModule,
+    FeatureModuleModule,
+    MenuModuleModule,
     TypeDeviceModule,
     UsersModule,
   ],

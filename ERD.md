@@ -160,6 +160,14 @@ EUR EUR
     
 
 
+        MenuType {
+            SIDEBAR SIDEBAR
+NAVBAR NAVBAR
+MODAL MODAL
+        }
+    
+
+
         DeviceAvailability {
             ACTIVE ACTIVE
 INACTIVE INACTIVE
@@ -280,9 +288,48 @@ INACTIVE INACTIVE
     String id "🗝️"
     String label 
     String description "❓"
-    String systemType "❓"
     Int maximumUnitAllowed "❓"
     Int allowedUsersCount "❓"
+    DateTime createdAt 
+    DateTime updatedAt 
+    }
+  
+
+  "systems" {
+    String id "🗝️"
+    String code 
+    String name 
+    String version "❓"
+    String technicalDetails "❓"
+    DateTime createdAt 
+    DateTime updatedAt 
+    }
+  
+
+  "modules" {
+    String id "🗝️"
+    String nameEs 
+    String nameEn "❓"
+    String namePt "❓"
+    String icon "❓"
+    Int order 
+    DateTime createdAt 
+    DateTime updatedAt 
+    }
+  
+
+  "menu_modules" {
+    Int id "🗝️"
+    MenuType menuType 
+    Int order 
+    String labelEs 
+    String labelEn "❓"
+    String labelPt "❓"
+    String details "❓"
+    String icon "❓"
+    String route "❓"
+    Boolean full 
+    Boolean light 
     DateTime createdAt 
     DateTime updatedAt 
     }
@@ -907,6 +954,11 @@ INACTIVE INACTIVE
     "crops" |o--}o "Labor" : "enum:labors"
     "movement_types" |o--|| "StockSumType" : "enum:stockSum"
     "device_types" |o--|| "DeviceStatus" : "enum:status"
+    "licence_types" }o--|o "systems" : "system"
+    "menu_modules" |o--|| "MenuType" : "enum:menuType"
+    "menu_modules" }o--|| "modules" : "module"
+    "menu_modules" }o--|o "systems" : "system"
+    "menu_modules" |o--|o "menu_modules" : "parent"
     "type_devices" |o--|| "DeviceAvailability" : "enum:available"
     "accounts" |o--|| "AccountCategory" : "enum:category"
     "accounts" |o--|| "CurrencyCode" : "enum:currency"

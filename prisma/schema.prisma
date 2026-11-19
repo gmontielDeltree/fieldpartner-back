@@ -294,15 +294,91 @@ model LicenceType {
   id                 String   @id @default(uuid())
   label              String
   description        String?
-  systemType         String?
+  systemId           String?
   maximumUnitAllowed Int?
   allowedUsersCount  Int?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
+  system   System?   @relation(fields: [systemId], references: [id], onDelete: Restrict)
   licences Licence[]
 
+  @@index([systemId])
   @@map("licence_types")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Platform menus (CouchDB: system, modules, menu-modules). Backoffice-managed.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// A FieldPartner product/system that licences and menus belong to (CouchDB: system).
+model System {
+  id               String   @id @default(uuid())
+  code             String   @unique // admin-chosen identifier (CouchDB "id")
+  name             String // CouchDB "system"
+  version          String?
+  technicalDetails String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  licenceTypes LicenceType[]
+  menuModules  MenuModule[]
+
+  @@map("systems")
+}
+
+// Menu grouping shown in the sidebar (CouchDB: modules). Named FeatureModule to avoid
+// clashing with NestJS's @Module decorator.
+model FeatureModule {
+  id        String   @id @default(uuid())
+  nameEs    String
+  nameEn    String?
+  namePt    String?
+  icon      String?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  menuModules MenuModule[]
+
+  @@map("modules")
+}
+
+enum MenuType {
+  SIDEBAR
+  NAVBAR
+  MODAL
+}
+
+// A menu entry (CouchDB: menu-modules). The numeric id is admin-chosen and stable:
+// user permissions and the frontend sidebar reference it, so it is NOT autoincrement.
+model MenuModule {
+  id        Int      @id
+  moduleId  String
+  systemId  String?
+  parentId  Int? // submenu container: another SIDEBAR menu of the same module
+  menuType  MenuType
+  order     Int      @default(0)
+  labelEs   String
+  labelEn   String?
+  labelPt   String?
+  details   String?
+  icon      String?
+  route     String? // empty = submenu container
+  full      Boolean  @default(true)
+  light     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  module   FeatureModule @relation(fields: [moduleId], references: [id], onDelete: Restrict)
+  system   System?       @relation(fields: [systemId], references: [id], onDelete: Restrict)
+  parent   MenuModule?   @relation("MenuModuleChildren", fields: [parentId], references: [id], onDelete: Restrict)
+  children MenuModule[]  @relation("MenuModuleChildren")
+
+  @@index([moduleId])
+  @@index([systemId])
+  @@index([parentId])
+  @@map("menu_modules")
 }
 
 enum DeviceAvailability {
@@ -340,32 +416,32 @@ model Account {
   createdAt                DateTime        @default(now())
   updatedAt                DateTime        @updatedAt
 
-  licences             Licence[]
-  company              Company?
-  contractCorporate    ContractCorporate?
-  zones                Zone[]
-  deposits             Deposit[]
-  fields               Field[]
-  campaigns            Campaign[]
-  vehicles             Vehicle[]
-  inputs               Input[]
-  stocks               Stock[]
-  stockMovements       StockMovement[]
-  cropMovements        CropMovement[]
-  cropDeposits         CropDeposit[]
-  exitFields           ExitField[]
-  withdrawalOrders     WithdrawalOrder[]
-  numerators           Numerator[]
-  originDestinations   OriginDestination[]
-  socialEntities       SocialEntity[]
-  laborServices        LaborService[]
-  purchaseOrders       PurchaseOrder[]
-  productiveUnits      ProductiveUnit[]
-  contractSaleCereals  ContractSaleCereal[]
-  transportDocuments   TransportDocument[]
-  certificateDeposits  CertificateDeposit[]
-  campaignExpenses     CampaignExpense[]
-  depositSupplyOrders  DepositSupplyOrder[]
+  licences            Licence[]
+  company             Company?
+  contractCorporate   ContractCorporate?
+  zones               Zone[]
+  deposits            Deposit[]
+  fields              Field[]
+  campaigns           Campaign[]
+  vehicles            Vehicle[]
+  inputs              Input[]
+  stocks              Stock[]
+  stockMovements      StockMovement[]
+  cropMovements       CropMovement[]
+  cropDeposits        CropDeposit[]
+  exitFields          ExitField[]
+  withdrawalOrders    WithdrawalOrder[]
+  numerators          Numerator[]
+  originDestinations  OriginDestination[]
+  socialEntities      SocialEntity[]
+  laborServices       LaborService[]
+  purchaseOrders      PurchaseOrder[]
+  productiveUnits     ProductiveUnit[]
+  contractSaleCereals ContractSaleCereal[]
+  transportDocuments  TransportDocument[]
+  certificateDeposits CertificateDeposit[]
+  campaignExpenses    CampaignExpense[]
+  depositSupplyOrders DepositSupplyOrder[]
 
   @@map("accounts")
 }
@@ -391,13 +467,13 @@ model Licence {
 }
 
 model User {
-  id              String    @id @default(uuid())
+  id              String        @id @default(uuid())
   licenceId       String
-  licence         Licence   @relation(fields: [licenceId], references: [id])
-  cognitoId       String    @unique
-  email           String    @unique
+  licence         Licence       @relation(fields: [licenceId], references: [id])
+  cognitoId       String        @unique
+  email           String        @unique
   username        String
-  state           UserState @default(PENDING)
+  state           UserState     @default(PENDING)
   role            UserRole?
   language        String
   isAdmin         Boolean?
@@ -405,8 +481,8 @@ model User {
   currency        CurrencyCode?
   photoName       String?
   activeSessionId String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   @@map("users")
 }
@@ -524,11 +600,11 @@ model Input {
 }
 
 model InputCropApplication {
-  id            String  @id @default(uuid())
+  id            String @id @default(uuid())
   inputId       String
-  input         Input   @relation(fields: [inputId], references: [id], onDelete: Cascade)
+  input         Input  @relation(fields: [inputId], references: [id], onDelete: Cascade)
   cropId        String
-  crop          Crop    @relation(fields: [cropId], references: [id])
+  crop          Crop   @relation(fields: [cropId], references: [id])
   minDose       Float?
   maxDose       Float?
   suggestedDose Float?
@@ -713,11 +789,11 @@ model Vehicle {
 
   maintenances          VehicleMaintenance[]
   specifications        VehicleSpecification[]
-  exitFieldsChasis      ExitField[]         @relation("ExitFieldChasis")
-  exitFieldsTrailer     ExitField[]         @relation("ExitFieldTrailer")
-  transportDocsChasis   TransportDocument[] @relation("TDChasis")
-  transportDocsTrailer1 TransportDocument[] @relation("TDTrailer1")
-  transportDocsTrailer2 TransportDocument[] @relation("TDTrailer2")
+  exitFieldsChasis      ExitField[]            @relation("ExitFieldChasis")
+  exitFieldsTrailer     ExitField[]            @relation("ExitFieldTrailer")
+  transportDocsChasis   TransportDocument[]    @relation("TDChasis")
+  transportDocsTrailer1 TransportDocument[]    @relation("TDTrailer1")
+  transportDocsTrailer2 TransportDocument[]    @relation("TDTrailer2")
 
   @@map("vehicles")
 }
@@ -816,36 +892,36 @@ model Stock {
 }
 
 model StockMovement {
-  id              String        @id @default(uuid())
+  id              String         @id @default(uuid())
   accountId       String
-  account         Account       @relation(fields: [accountId], references: [id])
+  account         Account        @relation(fields: [accountId], references: [id])
   movementTypeId  String?
-  movementType    MovementType? @relation(fields: [movementTypeId], references: [id])
+  movementType    MovementType?  @relation(fields: [movementTypeId], references: [id])
   inputId         String?
-  input           Input?        @relation(fields: [inputId], references: [id])
+  input           Input?         @relation(fields: [inputId], references: [id])
   cropId          String?
-  crop            Crop?         @relation(fields: [cropId], references: [id])
+  crop            Crop?          @relation(fields: [cropId], references: [id])
   itemType        StockItemType?
   userId          String?
   depositId       String?
-  deposit         Deposit?      @relation(fields: [depositId], references: [id])
+  deposit         Deposit?       @relation(fields: [depositId], references: [id])
   campaignId      String?
-  campaign        Campaign?     @relation(fields: [campaignId], references: [id])
+  campaign        Campaign?      @relation(fields: [campaignId], references: [id])
   location        String?
   nroLot          String?
   creationDate    DateTime?
   dueDate         DateTime?
-  isIncome        Boolean       @default(false)
+  isIncome        Boolean        @default(false)
   detail          String?
   operationDate   DateTime?
-  amount          Float         @default(0)
+  amount          Float          @default(0)
   voucher         String?
   currency        CurrencyCode?
   totalValue      Float?
   hours           String?
   unitMeasurement String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   @@map("stock_movements")
 }
@@ -1079,10 +1155,10 @@ model PurchaseOrder {
   otherPercentage Float?
   otherValue      Float?
   totalValue      Float?
-  sent            Boolean   @default(false)
+  sent            Boolean       @default(false)
   creationDate    DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   items PurchaseOrderItem[]
 
@@ -1137,50 +1213,50 @@ model ProductiveUnitField {
 // ═══════════════════════════════════════════════════════════════════════════
 
 model ContractSaleCereal {
-  id                        String             @id @default(uuid())
-  accountId                 String
-  account                   Account            @relation(fields: [accountId], references: [id])
-  campaignId                String?
-  campaign                  Campaign?          @relation(fields: [campaignId], references: [id])
-  companyId                 String?
-  company                   Company?           @relation(fields: [companyId], references: [id])
-  cropId                    String?
-  crop                      Crop?              @relation(fields: [cropId], references: [id])
-  producerId                String?
-  producer                  SocialEntity?      @relation("CSCProducer", fields: [producerId], references: [id])
-  buyerId                   String?
-  buyer                     SocialEntity?      @relation("CSCBuyer", fields: [buyerId], references: [id])
-  destinationId             String?
-  destination               OriginDestination? @relation(fields: [destinationId], references: [id])
-  delivererId               String?
-  deliverer                 SocialEntity?      @relation("CSCDeliverer", fields: [delivererId], references: [id])
-  brokerId                  String?
-  broker                    SocialEntity?      @relation("CSCBroker", fields: [brokerId], references: [id])
-  commissionAgentId         String?
-  commissionAgent           SocialEntity?      @relation("CSCCommission", fields: [commissionAgentId], references: [id])
-  contractSaleNumber        String?
-  brokerPercentage          Float?
-  brokerAmountValue         Float?
-  commissionAgentPercentage Float?
+  id                         String             @id @default(uuid())
+  accountId                  String
+  account                    Account            @relation(fields: [accountId], references: [id])
+  campaignId                 String?
+  campaign                   Campaign?          @relation(fields: [campaignId], references: [id])
+  companyId                  String?
+  company                    Company?           @relation(fields: [companyId], references: [id])
+  cropId                     String?
+  crop                       Crop?              @relation(fields: [cropId], references: [id])
+  producerId                 String?
+  producer                   SocialEntity?      @relation("CSCProducer", fields: [producerId], references: [id])
+  buyerId                    String?
+  buyer                      SocialEntity?      @relation("CSCBuyer", fields: [buyerId], references: [id])
+  destinationId              String?
+  destination                OriginDestination? @relation(fields: [destinationId], references: [id])
+  delivererId                String?
+  deliverer                  SocialEntity?      @relation("CSCDeliverer", fields: [delivererId], references: [id])
+  brokerId                   String?
+  broker                     SocialEntity?      @relation("CSCBroker", fields: [brokerId], references: [id])
+  commissionAgentId          String?
+  commissionAgent            SocialEntity?      @relation("CSCCommission", fields: [commissionAgentId], references: [id])
+  contractSaleNumber         String?
+  brokerPercentage           Float?
+  brokerAmountValue          Float?
+  commissionAgentPercentage  Float?
   commissionAgentAmountValue Float?
-  condition                 String?
-  paymentMethod             String?
-  isOpenContract            Boolean            @default(false)
-  dateCreated               DateTime?
-  kg                        Float?
-  kms                       Float?
-  quintalQuote              Float?
-  valueQuote                Float?
-  usdQuote                  Float?
-  valueUsdQuote             Float?
-  currency                  CurrencyCode?
-  amountValue               Float?
-  kgDelivered               Float?
-  valueCollected            Float?
-  contractType              String?
-  status                    String?
-  createdAt                 DateTime           @default(now())
-  updatedAt                 DateTime           @updatedAt
+  condition                  String?
+  paymentMethod              String?
+  isOpenContract             Boolean            @default(false)
+  dateCreated                DateTime?
+  kg                         Float?
+  kms                        Float?
+  quintalQuote               Float?
+  valueQuote                 Float?
+  usdQuote                   Float?
+  valueUsdQuote              Float?
+  currency                   CurrencyCode?
+  amountValue                Float?
+  kgDelivered                Float?
+  valueCollected             Float?
+  contractType               String?
+  status                     String?
+  createdAt                  DateTime           @default(now())
+  updatedAt                  DateTime           @updatedAt
 
   deliveryDates      ContractDeliveryDate[]
   transportDocuments TransportDocument[]
