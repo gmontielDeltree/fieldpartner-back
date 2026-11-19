@@ -21,6 +21,15 @@ export class MenuModuleBusiness {
   constructor(private readonly menuModuleRepository: MenuModuleRepository) {}
 
   async executeCreate(dto: CreateMenuModuleDto): Promise<MenuModuleDto> {
+    // The id is chosen by the admin: name the clashing id instead of the generic P2002 message.
+    // (The PK still guards the race between this check and the insert.)
+    if (await this.menuModuleRepository.findLink(dto.id)) {
+      throw new BusinessException(
+        BusinessErrorCode.DUPLICATE_ENTRY,
+        `Ya existe un menú con id ${dto.id}`,
+        HttpStatus.CONFLICT,
+      );
+    }
     await this.assertValidParent(dto.id, dto.parentId ?? null, dto.moduleId);
     return this.menuModuleRepository.create(dto);
   }

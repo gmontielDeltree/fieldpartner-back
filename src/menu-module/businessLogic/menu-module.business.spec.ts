@@ -43,10 +43,17 @@ describe('MenuModuleBusiness', () => {
   });
 
   describe('executeCreate', () => {
-    it('creates a top-level menu without checking parents', async () => {
+    it('creates a top-level menu, only checking the id is free', async () => {
       await business.executeCreate(dto());
       expect(repo.create).toHaveBeenCalled();
-      expect(repo.findLink).not.toHaveBeenCalled();
+      expect(repo.findLink).toHaveBeenCalledTimes(1);
+      expect(repo.findLink).toHaveBeenCalledWith(99);
+    });
+
+    it('rejects an id that already exists, naming it', async () => {
+      link(99);
+      await expect(business.executeCreate(dto())).rejects.toThrow('Ya existe un menú con id 99');
+      expect(repo.create).not.toHaveBeenCalled();
     });
 
     it('accepts a SIDEBAR parent of the same module', async () => {
