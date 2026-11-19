@@ -106,8 +106,8 @@ Detectada en la revisión del 2026-11-19 (waves 1–3 del backoffice):
 - **[MEDIA] El canal no se valida después del login.** El header `channel` solo se chequea al
   emitir el token (`/auth/login` y el completado de nueva contraseña). Un token obtenido por `fieldpartner_front` sirve igual contra endpoints del
   backoffice. Hoy lo mitiga 2.1 (roles); evaluar validar el canal también por request.
-- **[MEDIA] `users/` no sigue la estructura.** `UsersService` inyecta `PrismaService` y
-  `CognitoService` directamente (alta con Cognito + compensación, scoping, agrupado). Mover las
-  queries a `users.repository.ts` y el alta/edición a `businessLogic/users.business.ts`.
+- ~~**[MEDIA] `users/` no sigue la estructura.**~~ **Corregido (2026-11-19):** queries en
+  `users.repository.ts`, alta/edición (Cognito + compensación, scoping por rol) en
+  `businessLogic/users.business.ts`; el service quedó como fachada.
 - **[BAJA] Catálogos devuelven la entidad cruda** (incluye `createdAt`/`updatedAt`). Solo
   `licence-type` tiene DTO de respuesta. Aplicar la regla 2.5 al tocar cada módulo.

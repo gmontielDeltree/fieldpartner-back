@@ -1,6 +1,8 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { UsersService } from './users.service';
+import { UsersRepository } from './users.repository';
+import { UsersBusiness } from './businessLogic/users.business';
 import { Caller } from '../auth/roles.guard';
 
 describe('UsersService (role-scoped access)', () => {
@@ -30,7 +32,8 @@ describe('UsersService (role-scoped access)', () => {
       deleteUser: jest.fn().mockResolvedValue(undefined),
       adminSetPassword: jest.fn().mockResolvedValue(undefined),
     };
-    service = new UsersService(prisma, cognito);
+    const repository = new UsersRepository(prisma);
+    service = new UsersService(repository, new UsersBusiness(repository, cognito));
   });
 
   describe('listForCaller', () => {
