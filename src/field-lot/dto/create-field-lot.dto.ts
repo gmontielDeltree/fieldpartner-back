@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { IsString, IsNotEmpty, IsOptional, IsNumber, Min } from 'class-validator';
 
 export class CreateFieldLotDto {
@@ -23,7 +24,7 @@ export class CreateFieldLotDto {
   parentId?: string;
 
   @IsOptional()
-  coordinates?: any;
+  coordinates?: Prisma.InputJsonValue;
 
   @IsOptional()
   @IsString()

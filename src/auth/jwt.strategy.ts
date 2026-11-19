@@ -6,15 +6,27 @@ import { passportJwtSecret } from 'jwks-rsa';
 import { UserRole } from '@prisma/client';
 import { CognitoClients } from '../cognito/cognito-clients';
 
+/** Claims of a Cognito access token that this API reads (already signature-verified). */
+interface CognitoAccessTokenPayload {
+  sub: string;
+  token_use: string;
+  client_id: string;
+  username?: string;
+  email?: string;
+  'cognito:groups'?: string[];
+  'custom:role'?: string;
+  'custom:accountId'?: string;
+}
+
 /**
  * Resolves the caller's role from the **signed** access token, if present:
  * - `custom:role` claim (injected by the Pre-Token Generation Lambda), or
  * - `cognito:groups` (native in the access token when roles are modeled as groups).
  * Returns undefined when neither is set — the RolesGuard then falls back to the DB.
  */
-function resolveRoleClaim(payload: any): UserRole | undefined {
+function resolveRoleClaim(payload: CognitoAccessTokenPayload): UserRole | undefined {
   const custom = payload['custom:role'];
-  if (custom && Object.values(UserRole).includes(custom)) return custom as UserRole;
+  if (custom && (Object.values(UserRole) as string[]).includes(custom)) return custom as UserRole;
 
   const groups: string[] = payload['cognito:groups'] ?? [];
   if (groups.includes(UserRole.GENERAL_ADMIN)) return UserRole.GENERAL_ADMIN;
@@ -53,19 +65,19 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    * so we assert the client id and token type here and read identity from `sub`/`username`.
    * The channel comes from the signed `client_id` (undefined while clients are shared).
    */
-  async validate(payload: any) {
+  async validate(payload: CognitoAccessTokenPayload) {
     if (payload.token_use !== 'access' || !this.clients.isKnownClientId(payload.client_id)) {
       throw new UnauthorizedException('Invalid access token');
     }
 
     return {
-      cognitoId: payload.sub as string,
+      cognitoId: payload.sub,
       // Users are created with Username = email, so `username` is the email.
-      email:     (payload.email ?? payload.username) as string,
+      email:     payload.email ?? payload.username,
       // Optional authz claims — present once Cognito groups / the Pre-Token Lambda are wired.
       // The RolesGuard uses them when available and falls back to the DB otherwise.
       role:      resolveRoleClaim(payload),
-      accountId: (payload['custom:accountId'] as string | undefined) ?? undefined,
+      accountId: payload['custom:accountId'],
       channel:   this.clients.channelOf(payload.client_id),
     };
   }

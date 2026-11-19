@@ -14,6 +14,13 @@ module.exports = {
     jest: true,
   },
   ignorePatterns: ['.eslintrc.js', 'dist/', 'node_modules/'],
+  overrides: [
+    {
+      // Test doubles (Prisma / Cognito mocks) are intentionally loosely typed.
+      files: ['*.spec.ts', 'test/**/*.ts'],
+      rules: { '@typescript-eslint/no-explicit-any': 'off' },
+    },
+  ],
   rules: {
     '@typescript-eslint/interface-name-prefix': 'off',
     '@typescript-eslint/explicit-function-return-type': 'off',

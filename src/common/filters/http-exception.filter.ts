@@ -71,25 +71,25 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       const body       = exception.getResponse();
 
       // ValidationPipe throws BadRequestException with message[] — detect and format
-      if (
-        typeof body === 'object' &&
-        body !== null &&
-        'message' in body &&
-        Array.isArray((body as any).message)
-      ) {
+      const bodyMessage =
+        typeof body === 'object' && body !== null && 'message' in body
+          ? (body as { message: unknown }).message
+          : undefined;
+
+      if (Array.isArray(bodyMessage)) {
         return {
           statusCode,
           code:    BusinessErrorCode.VALIDATION_ERROR,
           message: 'Datos inválidos en la solicitud',
-          errors:  (body as any).message as string[],
+          errors:  bodyMessage.map(String),
         };
       }
 
       const message =
         typeof body === 'string'
           ? body
-          : typeof body === 'object' && 'message' in body
-            ? String((body as any).message)
+          : bodyMessage !== undefined
+            ? String(bodyMessage)
             : exception.message;
 
       return {

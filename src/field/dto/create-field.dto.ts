@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
 
 export class CreateFieldDto {
@@ -18,5 +19,5 @@ export class CreateFieldDto {
   uuid?: string;
 
   @IsOptional()
-  geojson?: any;
+  geojson?: Prisma.InputJsonValue;
 }

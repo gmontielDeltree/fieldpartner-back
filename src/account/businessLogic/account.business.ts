@@ -192,7 +192,9 @@ export class AccountBusiness {
           where: { id: account.id },
           select: ACCOUNT_DETAIL_SELECT,
         });
-        return toAccountDetail(created!);
+        // Read inside the same transaction right after creating it: only missing on a bug.
+        if (!created) throw new Error(`Account ${account.id} not found after create`);
+        return toAccountDetail(created);
       });
     } catch (error) {
       // DB failed — delete the Cognito user to avoid orphaned registrations

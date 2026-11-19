@@ -97,7 +97,9 @@ El `JwtAuthGuard` es global (APP_GUARD): todo endpoint exige token salvo `@Publi
 
 - Toda lógica en `businessLogic/` y toda regla de autorización (roles, scoping) lleva un
   `*.spec.ts`. Cognito siempre mockeado; los tests nunca tocan AWS.
-- Antes de dar algo por terminado: `npm run build`, `npm test` y `npm run lint`.
+- Antes de dar algo por terminado: `npm run build`, `npm test` y `npm run lint` (0 warnings).
+  Si `start:dev` está corriendo y `build` falla con `ENOTEMPTY` en `dist/`, usar
+  `npx tsc --noEmit -p tsconfig.json`.
 
 ## 5. Deuda conocida (pendiente de corregir)
 
@@ -107,9 +109,8 @@ Detectada en la revisión del 2026-11-19 (waves 1–3 del backoffice):
   catálogos exige `GENERAL_ADMIN`; lo cubre `src/auth/catalog-roles.spec.ts`. Todo catálogo
   nuevo se agrega a ese spec.
 - ~~**[MEDIA] `npm run lint` no funciona.**~~ **Corregido (2026-11-19):** `.eslintrc.js`
-  (base NestJS + `@typescript-eslint/recommended`). Quedan 36 warnings, 0 errores:
-  `no-non-null-assertion` (17 en `cognito.service.ts`, respuestas de AWS) y `no-explicit-any`
-  (`jwt.strategy.ts`, `http-exception.filter.ts`, DTOs de field/field-lot, specs). No sumar nuevos.
+  (base NestJS + `@typescript-eslint/recommended`). Warnings llevados a 0 y `npm run lint` corre
+  con `--max-warnings 0`: un warning nuevo rompe el lint. En specs se permite `any` (mocks).
 - ~~**[MEDIA] El canal no se valida después del login.**~~ **Corregido en código
   (2026-11-19):** app client por canal + `ChannelGuard` global + `@Channels()`.
   **Pendiente de infraestructura:** crear en el user pool un app client por frontend y cargar

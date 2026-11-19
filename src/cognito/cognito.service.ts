@@ -21,6 +21,7 @@ import {
   NotAuthorizedException,
   UserNotFoundException,
   AttributeType,
+  AuthenticationResultType,
 } from '@aws-sdk/client-cognito-identity-provider';
 import { Channel } from '../common/enums/channel.enum';
 import { CognitoClients } from './cognito-clients';
@@ -45,6 +46,24 @@ export type AuthResult = AuthTokens | AuthChallenge;
 
 export function isAuthChallenge(result: AuthResult): result is AuthChallenge {
   return 'challengeName' in result;
+}
+
+/**
+ * Maps Cognito's AuthenticationResult to our tokens, failing loudly if AWS returned an
+ * incomplete result. `fallbackRefreshToken` covers REFRESH_TOKEN_AUTH, where Cognito does
+ * not always rotate the refresh token.
+ */
+function toAuthTokens(
+  result: AuthenticationResultType | undefined,
+  fallbackRefreshToken?: string,
+): AuthTokens {
+  const accessToken = result?.AccessToken;
+  const refreshToken = result?.RefreshToken ?? fallbackRefreshToken;
+  const expiresIn = result?.ExpiresIn;
+  if (!accessToken || !refreshToken || expiresIn === undefined) {
+    throw new InternalServerErrorException('Respuesta de autenticación incompleta');
+  }
+  return { accessToken, refreshToken, expiresIn };
 }
 
 @Injectable()
@@ -168,17 +187,13 @@ export class CognitoService {
       );
 
       if (result.ChallengeName === 'NEW_PASSWORD_REQUIRED') {
-        return {
-          challengeName: 'NEW_PASSWORD_REQUIRED',
-          session:       result.Session!,
-        };
+        if (!result.Session) {
+          throw new InternalServerErrorException('Respuesta de autenticación incompleta');
+        }
+        return { challengeName: 'NEW_PASSWORD_REQUIRED', session: result.Session };
       }
 
-      return {
-        accessToken:  result.AuthenticationResult!.AccessToken!,
-        refreshToken: result.AuthenticationResult!.RefreshToken!,
-        expiresIn:    result.AuthenticationResult!.ExpiresIn!,
-      };
+      return toAuthTokens(result.AuthenticationResult);
     } catch (error) {
       if (error instanceof NotAuthorizedException || error instanceof UserNotFoundException) {
         throw new BusinessException(
@@ -215,11 +230,7 @@ export class CognitoService {
         }),
       );
 
-      return {
-        accessToken:  result.AuthenticationResult!.AccessToken!,
-        refreshToken: result.AuthenticationResult!.RefreshToken!,
-        expiresIn:    result.AuthenticationResult!.ExpiresIn!,
-      };
+      return toAuthTokens(result.AuthenticationResult);
     } catch (error) {
       throw new BadRequestException(`Challenge failed: ${error.message}`);
     }
@@ -242,11 +253,7 @@ export class CognitoService {
         }),
       );
 
-      return {
-        accessToken:  result.AuthenticationResult!.AccessToken!,
-        refreshToken: result.AuthenticationResult?.RefreshToken ?? refreshToken,
-        expiresIn:    result.AuthenticationResult!.ExpiresIn!,
-      };
+      return toAuthTokens(result.AuthenticationResult, refreshToken);
     } catch (error) {
       if (error instanceof NotAuthorizedException) {
         throw new BusinessException(
