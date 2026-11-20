@@ -3,44 +3,46 @@ import { CampaignState } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
+import { CAMPAIGN_SELECT, CampaignDto } from './dto/campaign.dto';
 
-const INCLUDE_DETAIL = {
-  zone: true,
-  field: { include: { lots: true } },
-} as const;
+const toDate = (value?: string) => (value ? new Date(value) : undefined);
 
 @Injectable()
 export class CampaignRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  create(dto: CreateCampaignDto) {
+  create(accountId: string, dto: CreateCampaignDto): Promise<CampaignDto> {
     return this.prisma.campaign.create({
-      data: { ...dto, startDate: dto.startDate ? new Date(dto.startDate) : undefined, endDate: dto.endDate ? new Date(dto.endDate) : undefined },
-      include: INCLUDE_DETAIL,
+      data: { ...dto, accountId, startDate: toDate(dto.startDate), endDate: toDate(dto.endDate) },
+      select: CAMPAIGN_SELECT,
     });
   }
 
-  findAll(accountId: string, state?: CampaignState) {
+  findAll(accountId: string, state?: CampaignState): Promise<CampaignDto[]> {
     return this.prisma.campaign.findMany({
       where: { accountId, ...(state && { state }) },
-      include: INCLUDE_DETAIL,
+      select: CAMPAIGN_SELECT,
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  findOne(id: string) {
-    return this.prisma.campaign.findUnique({ where: { id }, include: INCLUDE_DETAIL });
-  }
-
-  update(id: string, dto: UpdateCampaignDto) {
-    return this.prisma.campaign.update({
-      where: { id },
-      data: { ...dto, startDate: dto.startDate ? new Date(dto.startDate) : undefined, endDate: dto.endDate ? new Date(dto.endDate) : undefined },
-      include: INCLUDE_DETAIL,
+  /** `accountId` undefined = no account filter (GENERAL_ADMIN). */
+  findOne(id: string, accountId?: string): Promise<CampaignDto | null> {
+    return this.prisma.campaign.findFirst({
+      where: { id, ...(accountId && { accountId }) },
+      select: CAMPAIGN_SELECT,
     });
   }
 
-  remove(id: string) {
-    return this.prisma.campaign.delete({ where: { id } });
+  update(id: string, dto: UpdateCampaignDto): Promise<CampaignDto> {
+    return this.prisma.campaign.update({
+      where: { id },
+      data: { ...dto, startDate: toDate(dto.startDate), endDate: toDate(dto.endDate) },
+      select: CAMPAIGN_SELECT,
+    });
+  }
+
+  remove(id: string): Promise<CampaignDto> {
+    return this.prisma.campaign.delete({ where: { id }, select: CAMPAIGN_SELECT });
   }
 }

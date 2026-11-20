@@ -1,34 +1,46 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CampaignState } from '@prisma/client';
+import { Caller } from '../auth/roles.guard';
+import { accountFilter, resolveTargetAccount } from '../auth/account-scope';
 import { CampaignRepository } from './campaign.repository';
+import { CampaignBusiness } from './businessLogic/campaign.business';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
+import { CampaignDto } from './dto/campaign.dto';
 
+/** Campaigns belong to one account: every operation is scoped to the caller (see account-scope). */
 @Injectable()
 export class CampaignService {
-  constructor(private readonly campaignRepository: CampaignRepository) {}
+  constructor(
+    private readonly campaignRepository: CampaignRepository,
+    private readonly campaignBusiness: CampaignBusiness,
+  ) {}
 
-  create(dto: CreateCampaignDto) {
-    return this.campaignRepository.create(dto);
+  async create(dto: CreateCampaignDto, caller: Caller, accountId?: string): Promise<CampaignDto> {
+    const targetAccountId = resolveTargetAccount(caller, accountId);
+    await this.campaignBusiness.assertReferencesInAccount(targetAccountId, dto);
+    return this.campaignRepository.create(targetAccountId, dto);
   }
 
-  findAll(accountId: string, state?: CampaignState) {
-    return this.campaignRepository.findAll(accountId, state);
+  findAll(caller: Caller, accountId?: string, state?: CampaignState): Promise<CampaignDto[]> {
+    return this.campaignRepository.findAll(resolveTargetAccount(caller, accountId), state);
   }
 
-  async findOne(id: string) {
-    const campaign = await this.campaignRepository.findOne(id);
+  /** 404 both when it does not exist and when it belongs to another account. */
+  async findOne(id: string, caller: Caller): Promise<CampaignDto> {
+    const campaign = await this.campaignRepository.findOne(id, accountFilter(caller));
     if (!campaign) throw new NotFoundException(`Campaign ${id} not found`);
     return campaign;
   }
 
-  async update(id: string, dto: UpdateCampaignDto) {
-    await this.findOne(id);
+  async update(id: string, dto: UpdateCampaignDto, caller: Caller): Promise<CampaignDto> {
+    const campaign = await this.findOne(id, caller);
+    await this.campaignBusiness.assertReferencesInAccount(campaign.accountId, dto);
     return this.campaignRepository.update(id, dto);
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
+  async remove(id: string, caller: Caller): Promise<CampaignDto> {
+    await this.findOne(id, caller);
     return this.campaignRepository.remove(id);
   }
 }

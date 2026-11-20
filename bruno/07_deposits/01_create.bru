@@ -10,13 +10,16 @@ post {
   auth: none
 }
 
+params:query {
+  accountId: {{accountId}}
+}
+
 headers {
   Content-Type: application/json
 }
 
 body:json {
   {
-    "accountId": "{{accountId}}",
     "description": "Depósito Central",
     "owner": "Don Julio",
     "isVirtual": false,
