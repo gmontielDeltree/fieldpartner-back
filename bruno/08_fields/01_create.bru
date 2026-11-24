@@ -10,14 +10,45 @@ post {
   auth: none
 }
 
+params:query {
+  accountId: {{accountId}}
+}
+
 headers {
   Content-Type: application/json
 }
 
 body:json {
   {
-    "accountId": "{{accountId}}",
+    "name": "La Esperanza",
     "countryId": "{{countryId}}",
-    "name": "Campo La Esperanza"
+    "geometry": {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [
+            -60,
+            -34
+          ],
+          [
+            -59.99,
+            -34
+          ],
+          [
+            -59.99,
+            -33.99
+          ],
+          [
+            -60,
+            -33.99
+          ],
+          [
+            -60,
+            -34
+          ]
+        ]
+      ]
+    },
+    "declaredHectares": 102.5
   }
 }

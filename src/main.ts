@@ -1,11 +1,16 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Field and lot outlines go up to 10,000 vertices (MAX_GEOMETRY_POSITIONS): ~400 KB of
+  // GeoJSON, above Express's 100 KB default. 2 MB leaves room without inviting abuse.
+  app.useBodyParser('json', { limit: '2mb' });
 
   // Security headers
   app.use(helmet());

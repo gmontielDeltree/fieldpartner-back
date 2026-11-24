@@ -107,11 +107,57 @@ El `JwtAuthGuard` es global (APP_GUARD): todo endpoint exige token salvo `@Publi
   porque los permisos de usuario y el sidebar del front lo referencian; es inmutable (no está
   en el DTO de update).
 - Nombres de modelo: no usar nombres que choquen con NestJS (`Module` → `FeatureModule`).
-- Importación desde CouchDB: `scripts/` (fuera de la estructura de módulos, usan Prisma directo).
+- Importación desde CouchDB: `scripts/` (fuera de la estructura de módulos, usan Prisma directo;
+  `tsconfig.build.json` los excluye para que `nest build` deje `dist/main.js`, y corren con ts-node).
   `npm run import:couch-menus` trae system/modules/menu-modules: dry-run por defecto, `-- --apply`
   para escribir, idempotente; necesita `COUCHDB_URL` (y `COUCHDB_DB_SUFFIX=_stg` para staging).
+  `npm run import:couch-fields` trae campos y lotes (KAN-65), mismas reglas; ver § PostGIS.
 - Si un cambio afecta datos de referencia, actualizar `prisma/seed.sql` (idempotente,
   `ON CONFLICT`).
+
+### PostGIS (campos y lotes, KAN-65)
+
+- La base necesita la extensión `postgis` (imagen local `postgis/postgis:16-3.5-alpine`; en
+  staging/producción `CREATE EXTENSION` lo corre un superusuario / `rds_superuser`).
+- `Field.geometry` y `Lot.geometry` son `geometry(MultiPolygon,4326)` declarados como
+  `Unsupported(...)`: el cliente de Prisma **no puede leerlos ni escribirlos**, y tampoco
+  `create` en esos modelos. Las escrituras y lecturas de geometría van con SQL a mano
+  (`$queryRaw` con parámetros, nunca `$queryRawUnsafe` con strings armados) **solo en el
+  repository**, normalizando: `ST_Multi(ST_Force2D(...))`, `ST_ForcePolygonCCW` (RFC 7946),
+  `ST_ReducePrecision(..., 1e-7)`. Geometría inválida por API → 400 con `ST_IsValidReason`.
+- `hectares` es una columna **generada** (`ST_Area(geometry::geography)/10000`, geodésica): no
+  se escribe nunca; en el schema figura como `@default(dbgenerated(...))` para que Prisma no
+  la vea como desfase. `declaredHectares` es la superficie catastral cargada a mano.
+- La migración agrega cosas que `schema.prisma` no expresa: `CHECK` de geometría válida y no
+  vacía, y el índice único parcial `lots_fieldId_layoutId_name_active_key`
+  (`lower(name)` entre los no archivados). Si una migración generada con `migrate dev`
+  propone borrarlos, es un error: sacarlo a mano.
+- Las FK hacia `fields` y `lots` desde stock, salidas, movimientos, depósitos de granos,
+  unidades productivas y gastos son `RESTRICT`: con referencias se archiva (`archivedAt`), no
+  se borra.
+- El SQL espacial común (normalizar, lote dentro del campo, superposiciones, recorte) está en
+  `src/common/geo/geometry.repository.ts`; las tolerancias, en `geo.types.ts` (1 % relativo).
+- **Escrituras de lotes:** una transacción que bloquea (`FOR UPDATE`) primero el layout y
+  después el campo; un cambio de contorno bloquea el campo. Mantener ese orden para no armar
+  deadlocks.
+- **Layout congelado** (`lockedAt`, o lo usa una campaña cerrada): no se edita en el lugar.
+  Desde una campaña abierta (`?campaignId=`) se copia, todas las campañas abiertas que lo
+  compartían pasan a la copia y la escritura cae ahí (`LotLayoutBusiness.writableLayout`).
+  Cerrar una campaña congela su layout (`CampaignBusiness.lockLayoutIfClosed`).
+- **Toda campaña tiene layout** (`Campaign.lotLayoutId` NOT NULL). Al crearla, con
+  `lotLayoutId` comparte ese layout ("continuar"); sin él se crea uno vacío con el nombre de la
+  campaña, en la misma transacción ("independiente" o primera campaña). Al borrarla se borra
+  su layout si queda sin campañas y sin lotes.
+- Límite del body JSON: 2 MB (`main.ts`), por las geometrías de hasta 10.000 vértices. Si se
+  pasa, el filtro global responde 413 `PAYLOAD_TOO_LARGE` (antes caía como 500).
+- **Importación desde CouchDB** (`scripts/import-couchdb-fields.ts`): `field.lotes` → layout
+  "Base" (`legacyBranchId = 'legacy'`), cada `lotBranches[id]` → su layout; ids legacy en
+  `legacyId`/`legacyUuid`/`legacyName`. El dry-run corre todo en una transacción que se
+  revierte (el informe incluye los chequeos de PostGIS). No rechaza datos legacy: repara con
+  `ST_MakeValid`, recorta hasta el 1 % y avisa lo demás (lotes fuera del campo o superpuestos).
+  **No importa campañas:** el importador de campañas debe poner
+  `lotLayoutId` = layout con `legacyBranchId = campaign.lotBranchId ?? 'legacy'`. La cuenta
+  de Postgres tiene que tener el mismo id que en CouchDB (o `--account=… --into=…`).
 
 ## 4. Tests y verificación
 
@@ -143,10 +189,13 @@ Detectada en la revisión del 2026-11-19 (waves 1–3 del backoffice):
   `businessLogic/users.business.ts`; el service quedó como fachada.
 - ~~**[ALTA] IDOR en zones, deposits, campaigns e inputs.**~~ **Corregido (2026-11-20, KAN-64):**
   scoping por cuenta desde `req.caller`, `@Roles`, DTOs de respuesta y validación de referencias.
-- **[ALTA] `fields` y `field-lots` siguen sin `@Roles` ni scoping** (`accountId` por query,
-  get/patch/delete por id sin chequear la cuenta). No se parcharon a propósito: su modelo
-  (geometría, lotes, ramas por campaña) se rediseña en KAN-65 y el scoping va con ese cambio.
-  No exponerlos a ningún frontend hasta entonces.
+- ~~**[ALTA] `fields` y `field-lots` siguen sin `@Roles` ni scoping.**~~ **Corregido
+  (2026-11-24, KAN-65):** se reemplazaron por `fields`, `lot-layouts` y `lots` (PostGIS), con
+  `@Roles(...ACCOUNT_DATA_ROLES)` y scoping por cuenta (los lotes, a través de su layout);
+  lo cubre `src/lot/fields-lots.scoping.spec.ts`.
+- **[BAJA] `accounts.accountReference`:** se sacó del schema en `746d42d` sin migración. Una
+  base creada desde las migraciones conserva la columna, y `migrate diff` propone borrarla.
+  Necesita su propia migración (no se mezcló con KAN-65).
 - ~~**[BAJA] Catálogos devuelven la entidad cruda.**~~ **Corregido (2026-11-19):** los 7
   catálogos usan `<DOMINIO>_SELECT` + `<Model>Dto` (`Prisma.<Model>GetPayload`) en todas las
   queries del repository.

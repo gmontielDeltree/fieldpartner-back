@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 generator erd {
@@ -8,8 +9,9 @@ generator erd {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis]
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -107,11 +109,6 @@ enum NumeratorType {
   WORK_ORDER
   PURCHASE_ORDER
   CEREAL_SALE_CONTRACT
-}
-
-enum LotBranchMode {
-  SHARED
-  INDEPENDENT
 }
 
 enum DeviceStatus {
@@ -422,6 +419,7 @@ model Account {
   zones               Zone[]
   deposits            Deposit[]
   fields              Field[]
+  lotLayouts          LotLayout[]
   campaigns           Campaign[]
   vehicles            Vehicle[]
   inputs              Input[]
@@ -679,41 +677,87 @@ model DepositLocation {
   @@map("deposit_locations")
 }
 
+/// Georeferenced farm (KAN-65). The Prisma client does not support PostGIS columns:
+/// `geometry` is written only through raw SQL in the fields repository (normalized to
+/// MultiPolygon 4326) and `hectares` is a generated column (geodesic area), never written.
 model Field {
-  id        String   @id @default(uuid())
-  accountId String
-  account   Account  @relation(fields: [accountId], references: [id])
-  countryId String?
-  country   Country? @relation(fields: [countryId], references: [id])
-  name      String
-  uuid      String?  @unique
-  geojson   Json?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String                                     @id @default(uuid())
+  accountId        String
+  account          Account                                    @relation(fields: [accountId], references: [id])
+  countryId        String?
+  country          Country?                                   @relation(fields: [countryId], references: [id])
+  name             String
+  geometry         Unsupported("geometry(MultiPolygon,4326)")
+  hectares         Float?                                     @default(dbgenerated("(st_area((geometry)::geography) / (10000)::double precision)"))
+  declaredHectares Float?
+  archivedAt       DateTime?
+  legacyId         String?
+  legacyUuid       String?
+  createdAt        DateTime                                   @default(now())
+  updatedAt        DateTime                                   @updatedAt
 
-  lots                 FieldLot[]
+  lots                 Lot[]
   exitFields           ExitField[]
   cropMovements        CropMovement[]
   cropDeposits         CropDeposit[]
   stocks               Stock[]
   productiveUnitFields ProductiveUnitField[]
-  campaigns            Campaign[]
   campaignExpenses     CampaignExpense[]
 
+  @@unique([accountId, legacyId])
+  @@index([accountId])
+  @@index([geometry], type: Gist)
   @@map("fields")
 }
 
-model FieldLot {
-  id          String  @id @default(uuid())
-  fieldId     String
-  field       Field   @relation(fields: [fieldId], references: [id], onDelete: Cascade)
-  name        String
-  uuid        String? @unique
-  hectares    Float?
-  parentId    String?
-  coordinates Json?
-  lotType     String?
+/// A version of the account's lot subdivision (replaces CouchDB `lotBranches`). Campaigns
+/// that "continue" share a layout; an "independent" campaign gets a new one. Once a closed
+/// campaign uses it the layout is locked (`lockedAt`) and edits work on a copy.
+model LotLayout {
+  id             String     @id @default(uuid())
+  accountId      String
+  account        Account    @relation(fields: [accountId], references: [id])
+  name           String
+  sourceLayoutId String?
+  sourceLayout   LotLayout? @relation("LotLayoutSource", fields: [sourceLayoutId], references: [id], onDelete: SetNull)
+  promotedAt     DateTime?
+  lockedAt       DateTime?
+  legacyBranchId String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
+  derivedLayouts LotLayout[] @relation("LotLayoutSource")
+  lots           Lot[]
+  campaigns      Campaign[]
+
+  @@unique([accountId, legacyBranchId])
+  @@index([accountId])
+  @@map("lot_layouts")
+}
+
+/// A lot of a field within one layout. Same raw-SQL rules as Field for `geometry` and
+/// `hectares`. The name is unique per field + layout among non-archived lots (partial index
+/// in the migration). `sourceLotId` records which lot of the source layout it came from.
+model Lot {
+  id               String                                     @id @default(uuid())
+  fieldId          String
+  field            Field                                      @relation(fields: [fieldId], references: [id])
+  layoutId         String
+  layout           LotLayout                                  @relation(fields: [layoutId], references: [id])
+  name             String
+  geometry         Unsupported("geometry(MultiPolygon,4326)")
+  hectares         Float?                                     @default(dbgenerated("(st_area((geometry)::geography) / (10000)::double precision)"))
+  declaredHectares Float?
+  sourceLotId      String?
+  sourceLot        Lot?                                       @relation("LotSource", fields: [sourceLotId], references: [id], onDelete: SetNull)
+  archivedAt       DateTime?
+  legacyId         String?
+  legacyUuid       String?
+  legacyName       String?
+  createdAt        DateTime                                   @default(now())
+  updatedAt        DateTime                                   @updatedAt
+
+  derivedLots          Lot[]                 @relation("LotSource")
   stocks               Stock[]
   exitFields           ExitField[]
   cropMovements        CropMovement[]
@@ -721,29 +765,28 @@ model FieldLot {
   productiveUnitFields ProductiveUnitField[]
   campaignExpenses     CampaignExpense[]
 
-  @@map("field_lots")
+  @@index([fieldId])
+  @@index([layoutId])
+  @@index([geometry], type: Gist)
+  @@map("lots")
 }
 
 model Campaign {
-  id                        String         @id @default(uuid())
-  accountId                 String
-  account                   Account        @relation(fields: [accountId], references: [id])
-  zoneId                    String?
-  zone                      Zone?          @relation(fields: [zoneId], references: [id])
-  fieldId                   String?
-  field                     Field?         @relation(fields: [fieldId], references: [id])
-  name                      String
-  description               String?
-  zafra                     String?
-  startDate                 DateTime?
-  endDate                   DateTime?
-  state                     CampaignState  @default(ACTIVE)
-  lotBranchId               String?
-  lotBranchMode             LotBranchMode?
-  lotBranchSourceCampaignId String?
-  lotBranchPromotedAt       DateTime?
-  createdAt                 DateTime       @default(now())
-  updatedAt                 DateTime       @updatedAt
+  id          String        @id @default(uuid())
+  accountId   String
+  account     Account       @relation(fields: [accountId], references: [id])
+  zoneId      String?
+  zone        Zone?         @relation(fields: [zoneId], references: [id])
+  name        String
+  description String?
+  zafra       String?
+  startDate   DateTime?
+  endDate     DateTime?
+  state       CampaignState @default(ACTIVE)
+  lotLayoutId String
+  lotLayout   LotLayout     @relation(fields: [lotLayoutId], references: [id], onDelete: Restrict)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
   stocks              Stock[]
   stockMovements      StockMovement[]
@@ -877,9 +920,9 @@ model Stock {
   campaignId    String?
   campaign      Campaign?     @relation(fields: [campaignId], references: [id])
   fieldId       String?
-  field         Field?        @relation(fields: [fieldId], references: [id])
+  field         Field?        @relation(fields: [fieldId], references: [id], onDelete: Restrict)
   fieldLotId    String?
-  fieldLot      FieldLot?     @relation(fields: [fieldLotId], references: [id])
+  fieldLot      Lot?          @relation(fields: [fieldLotId], references: [id], onDelete: Restrict)
   location      String?
   nroLot        String?
   currentStock  Float         @default(0)
@@ -937,9 +980,9 @@ model CropMovement {
   campaignId String?
   campaign   Campaign?      @relation(fields: [campaignId], references: [id])
   fieldId    String?
-  field      Field?         @relation(fields: [fieldId], references: [id])
+  field      Field?         @relation(fields: [fieldId], references: [id], onDelete: Restrict)
   lotId      String?
-  lot        FieldLot?      @relation(fields: [lotId], references: [id])
+  lot        Lot?           @relation(fields: [lotId], references: [id], onDelete: Restrict)
   zafra      String?
   direction  InOutDirection
   date       DateTime?
@@ -963,9 +1006,9 @@ model CropDeposit {
   depositId       String?
   deposit         Deposit?  @relation(fields: [depositId], references: [id])
   fieldId         String?
-  field           Field?    @relation(fields: [fieldId], references: [id])
+  field           Field?    @relation(fields: [fieldId], references: [id], onDelete: Restrict)
   lotId           String?
-  lot             FieldLot? @relation(fields: [lotId], references: [id])
+  lot             Lot?      @relation(fields: [lotId], references: [id], onDelete: Restrict)
   zafra           String?
   location        String?
   currentStockKg  Float     @default(0)
@@ -987,9 +1030,9 @@ model ExitField {
   campaignId            String?
   campaign              Campaign?          @relation(fields: [campaignId], references: [id])
   fieldId               String?
-  field                 Field?             @relation(fields: [fieldId], references: [id])
+  field                 Field?             @relation(fields: [fieldId], references: [id], onDelete: Restrict)
   lotId                 String?
-  lot                   FieldLot?          @relation(fields: [lotId], references: [id])
+  lot                   Lot?               @relation(fields: [lotId], references: [id], onDelete: Restrict)
   cropId                String?
   crop                  Crop?              @relation(fields: [cropId], references: [id])
   depositId             String?
@@ -1198,9 +1241,9 @@ model ProductiveUnitField {
   productiveUnitId String
   productiveUnit   ProductiveUnit @relation(fields: [productiveUnitId], references: [id], onDelete: Cascade)
   fieldId          String?
-  field            Field?         @relation(fields: [fieldId], references: [id])
+  field            Field?         @relation(fields: [fieldId], references: [id], onDelete: Restrict)
   lotId            String?
-  lot              FieldLot?      @relation(fields: [lotId], references: [id])
+  lot              Lot?           @relation(fields: [lotId], references: [id], onDelete: Restrict)
   fieldName        String?
   hectares         Float?
   createdAt        DateTime       @default(now())
@@ -1381,9 +1424,9 @@ model CampaignExpense {
   campaignId      String?
   campaign        Campaign? @relation(fields: [campaignId], references: [id])
   fieldId         String?
-  field           Field?    @relation(fields: [fieldId], references: [id])
+  field           Field?    @relation(fields: [fieldId], references: [id], onDelete: Restrict)
   lotId           String?
-  lot             FieldLot? @relation(fields: [lotId], references: [id])
+  lot             Lot?      @relation(fields: [lotId], references: [id], onDelete: Restrict)
   cropId          String?
   crop            Crop?     @relation(fields: [cropId], references: [id])
   hectares        Float?

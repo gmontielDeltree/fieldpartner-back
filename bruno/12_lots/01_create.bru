@@ -1,0 +1,54 @@
+meta {
+  name: Create Lot
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/lots
+  body: json
+  auth: none
+}
+
+params:query {
+  campaignId: {{campaignId}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "layoutId": "{{lotLayoutId}}",
+    "fieldId": "{{fieldId}}",
+    "name": "Lote 1",
+    "geometry": {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [
+            -60,
+            -34
+          ],
+          [
+            -59.995,
+            -34
+          ],
+          [
+            -59.995,
+            -33.99
+          ],
+          [
+            -60,
+            -33.99
+          ],
+          [
+            -60,
+            -34
+          ]
+        ]
+      ]
+    }
+  }
+}

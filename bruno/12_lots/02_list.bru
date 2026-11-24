@@ -1,0 +1,16 @@
+meta {
+  name: List Lots
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/lots
+  body: none
+  auth: none
+}
+
+params:query {
+  layoutId: {{lotLayoutId}}
+  fieldId: {{fieldId}}
+}

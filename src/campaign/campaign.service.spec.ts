@@ -23,15 +23,22 @@ describe('CampaignService (account scoping)', () => {
         count: jest.fn().mockResolvedValue(1),
       },
       zone: { count: jest.fn().mockResolvedValue(1) },
-      field: { count: jest.fn().mockResolvedValue(1) },
+      lotLayout: {
+        count: jest.fn().mockResolvedValue(1),
+        updateMany: jest.fn(),
+        create: jest.fn().mockResolvedValue({ id: 'ly-new' }),
+        deleteMany: jest.fn(),
+      },
     };
-    service = new CampaignService(new CampaignRepository(prisma), new CampaignBusiness(prisma));
+    prisma.$transaction = jest.fn((fn: (tx: unknown) => unknown) => fn(prisma));
+    const repository = new CampaignRepository(prisma);
+    service = new CampaignService(repository, new CampaignBusiness(prisma, repository));
   });
 
   it('creates in the caller account after checking references against it', async () => {
-    await service.create({ name: '24/25', zoneId: 'z1', fieldId: 'f1' }, admin);
+    await service.create({ name: '24/25', zoneId: 'z1', lotLayoutId: 'ly1' }, admin);
     expect(prisma.zone.count).toHaveBeenCalledWith({ where: { id: 'z1', accountId: 'acc-1' } });
-    expect(prisma.field.count).toHaveBeenCalledWith({ where: { id: 'f1', accountId: 'acc-1' } });
+    expect(prisma.lotLayout.count).toHaveBeenCalledWith({ where: { id: 'ly1', accountId: 'acc-1' } });
     expect(prisma.campaign.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ accountId: 'acc-1', zoneId: 'z1' }) }),
     );
@@ -39,8 +46,7 @@ describe('CampaignService (account scoping)', () => {
 
   it.each([
     ['zoneId', 'zone'],
-    ['fieldId', 'field'],
-    ['lotBranchSourceCampaignId', 'campaign'],
+    ['lotLayoutId', 'lotLayout'],
   ])('rejects a %s from another account', async (key, model) => {
     prisma[model].count.mockResolvedValue(0);
     await expect(service.create({ name: '24/25', [key]: 'other' }, admin)).rejects.toBeInstanceOf(
@@ -65,6 +71,58 @@ describe('CampaignService (account scoping)', () => {
     expect(prisma.campaign.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: 'c1', accountId: 'acc-1' } }),
     );
+  });
+
+  it('closing a campaign locks its lot layout (KAN-65)', async () => {
+    prisma.campaign.findFirst.mockResolvedValue({ id: 'c1', accountId: 'acc-1', state: 'ACTIVE', lotLayoutId: 'ly1' });
+    prisma.campaign.update.mockResolvedValue({ id: 'c1', state: 'CLOSED', lotLayoutId: 'ly1' });
+    await service.update('c1', { state: 'CLOSED' }, admin);
+    expect(prisma.lotLayout.updateMany).toHaveBeenCalledWith({
+      where: { id: 'ly1', lockedAt: null },
+      data: { lockedAt: expect.any(Date) },
+    });
+  });
+
+  it('an open campaign does not lock its layout', async () => {
+    prisma.campaign.findFirst.mockResolvedValue({ id: 'c1', accountId: 'acc-1', state: 'ACTIVE', lotLayoutId: 'ly1' });
+    prisma.campaign.update.mockResolvedValue({ id: 'c1', state: 'ACTIVE', lotLayoutId: 'ly1' });
+    await service.update('c1', { name: 'x' }, admin);
+    expect(prisma.lotLayout.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('a closed campaign cannot change its lot layout', async () => {
+    prisma.campaign.findFirst.mockResolvedValue({ id: 'c1', accountId: 'acc-1', state: 'CLOSED', lotLayoutId: 'ly1' });
+    await expect(service.update('c1', { lotLayoutId: 'ly2' }, admin)).rejects.toBeInstanceOf(BusinessException);
+    expect(prisma.campaign.update).not.toHaveBeenCalled();
+  });
+
+  it('"continue": a given layout is shared, no new layout is created', async () => {
+    await service.create({ name: '25/26', lotLayoutId: 'ly1' }, admin);
+    expect(prisma.lotLayout.create).not.toHaveBeenCalled();
+    expect(prisma.campaign.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ lotLayoutId: 'ly1' }) }),
+    );
+  });
+
+  it('without a layout ("independent" / first campaign) an empty one is created with it', async () => {
+    await service.create({ name: '25/26' }, admin);
+    expect(prisma.$transaction).toHaveBeenCalled();
+    expect(prisma.lotLayout.create).toHaveBeenCalledWith({
+      data: { accountId: 'acc-1', name: '25/26' },
+      select: { id: true },
+    });
+    expect(prisma.campaign.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ accountId: 'acc-1', lotLayoutId: 'ly-new' }) }),
+    );
+  });
+
+  it('deleting a campaign drops its layout only if no campaign or lot uses it', async () => {
+    prisma.campaign.findFirst.mockResolvedValue({ id: 'c1', accountId: 'acc-1', lotLayoutId: 'ly1' });
+    await service.remove('c1', admin);
+    expect(prisma.campaign.delete).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'c1' } }));
+    expect(prisma.lotLayout.deleteMany).toHaveBeenCalledWith({
+      where: { id: 'ly1', campaigns: { none: {} }, lots: { none: {} } },
+    });
   });
 
   it('filters the list by account and state', async () => {

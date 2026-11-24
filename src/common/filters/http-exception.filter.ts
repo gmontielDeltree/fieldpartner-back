@@ -15,6 +15,7 @@ interface ErrorResponse {
   code: string;
   message: string;
   errors?: string[];
+  details?: unknown;
   timestamp: string;
   path: string;
 }
@@ -28,7 +29,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request  = ctx.getRequest<Request>();
 
-    const { statusCode, code, message, errors } = this.normalize(exception);
+    const { statusCode, code, message, errors, details } = this.normalize(exception);
 
     // Log 5xx as errors, 4xx as warnings (expected business failures are noise at error level)
     if (statusCode >= 500) {
@@ -42,6 +43,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       code,
       message,
       ...(errors?.length && { errors }),
+      ...(details !== undefined && { details }),
       timestamp: new Date().toISOString(),
       path: request.url,
     };
@@ -54,6 +56,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     code: string;
     message: string;
     errors?: string[];
+    details?: unknown;
   } {
     // ── BusinessException (our domain errors with explicit code) ─────────────
     if (exception instanceof BusinessException) {
@@ -62,6 +65,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         statusCode: exception.getStatus(),
         code:       body.code,
         message:    body.message,
+        details:    exception.details,
       };
     }
 
@@ -110,6 +114,22 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         statusCode: HttpStatus.BAD_REQUEST,
         code:       BusinessErrorCode.VALIDATION_ERROR,
         message:    'Error de validación en la base de datos',
+      };
+    }
+
+    // ── body-parser errors (http-errors: 413 too large, 400 malformed JSON) ──
+    // They are thrown by Express before Nest, so they are not HttpExceptions.
+    const bodyError = exception as { type?: unknown; status?: unknown; expose?: unknown } | null;
+    if (bodyError?.expose === true && typeof bodyError.status === 'number' && bodyError.status < 500) {
+      const tooLarge = bodyError.type === 'entity.too.large';
+      return {
+        statusCode: bodyError.status,
+        code:       tooLarge ? 'PAYLOAD_TOO_LARGE' : this.httpStatusToCode(bodyError.status),
+        message:    tooLarge
+          ? 'El cuerpo de la solicitud supera el tamaño máximo permitido'
+          : bodyError.type === 'entity.parse.failed'
+            ? 'El cuerpo de la solicitud no es JSON válido'
+            : 'Solicitud inválida',
       };
     }
 

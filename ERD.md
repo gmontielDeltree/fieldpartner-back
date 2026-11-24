@@ -122,13 +122,6 @@ CEREAL_SALE_CONTRACT CEREAL_SALE_CONTRACT
     
 
 
-        LotBranchMode {
-            SHARED SHARED
-INDEPENDENT INDEPENDENT
-        }
-    
-
-
         DeviceStatus {
             ACTIVE ACTIVE
 INACTIVE INACTIVE
@@ -517,21 +510,38 @@ INACTIVE INACTIVE
   "fields" {
     String id "🗝️"
     String name 
-    String uuid "❓"
-    Json geojson "❓"
+    Float hectares "❓"
+    Float declaredHectares "❓"
+    DateTime archivedAt "❓"
+    String legacyId "❓"
+    String legacyUuid "❓"
     DateTime createdAt 
     DateTime updatedAt 
     }
   
 
-  "field_lots" {
+  "lot_layouts" {
     String id "🗝️"
     String name 
-    String uuid "❓"
+    DateTime promotedAt "❓"
+    DateTime lockedAt "❓"
+    String legacyBranchId "❓"
+    DateTime createdAt 
+    DateTime updatedAt 
+    }
+  
+
+  "lots" {
+    String id "🗝️"
+    String name 
     Float hectares "❓"
-    String parentId "❓"
-    Json coordinates "❓"
-    String lotType "❓"
+    Float declaredHectares "❓"
+    DateTime archivedAt "❓"
+    String legacyId "❓"
+    String legacyUuid "❓"
+    String legacyName "❓"
+    DateTime createdAt 
+    DateTime updatedAt 
     }
   
 
@@ -543,10 +553,6 @@ INACTIVE INACTIVE
     DateTime startDate "❓"
     DateTime endDate "❓"
     CampaignState state 
-    String lotBranchId "❓"
-    LotBranchMode lotBranchMode "❓"
-    String lotBranchSourceCampaignId "❓"
-    DateTime lotBranchPromotedAt "❓"
     DateTime createdAt 
     DateTime updatedAt 
     }
@@ -990,12 +996,15 @@ INACTIVE INACTIVE
     "deposit_locations" }o--|| "deposits" : "deposit"
     "fields" }o--|| "accounts" : "account"
     "fields" }o--|o "countries" : "country"
-    "field_lots" }o--|| "fields" : "field"
+    "lot_layouts" }o--|| "accounts" : "account"
+    "lot_layouts" |o--|o "lot_layouts" : "sourceLayout"
+    "lots" }o--|| "fields" : "field"
+    "lots" }o--|| "lot_layouts" : "layout"
+    "lots" |o--|o "lots" : "sourceLot"
     "campaigns" }o--|| "accounts" : "account"
     "campaigns" }o--|o "zones" : "zone"
-    "campaigns" }o--|o "fields" : "field"
     "campaigns" |o--|| "CampaignState" : "enum:state"
-    "campaigns" |o--|o "LotBranchMode" : "enum:lotBranchMode"
+    "campaigns" }o--|| "lot_layouts" : "lotLayout"
     "vehicles" }o--|| "accounts" : "account"
     "vehicles" }o--|o "vehicle_types" : "vehicleType"
     "vehicles" |o--|o "FuelType" : "enum:fuelType"
@@ -1010,7 +1019,7 @@ INACTIVE INACTIVE
     "stocks" }o--|o "deposits" : "deposit"
     "stocks" }o--|o "campaigns" : "campaign"
     "stocks" }o--|o "fields" : "field"
-    "stocks" }o--|o "field_lots" : "fieldLot"
+    "stocks" }o--|o "lots" : "fieldLot"
     "stock_movements" }o--|| "accounts" : "account"
     "stock_movements" }o--|o "movement_types" : "movementType"
     "stock_movements" }o--|o "inputs" : "input"
@@ -1024,18 +1033,18 @@ INACTIVE INACTIVE
     "crop_movements" }o--|| "crops" : "crop"
     "crop_movements" }o--|o "campaigns" : "campaign"
     "crop_movements" }o--|o "fields" : "field"
-    "crop_movements" }o--|o "field_lots" : "lot"
+    "crop_movements" }o--|o "lots" : "lot"
     "crop_movements" |o--|| "InOutDirection" : "enum:direction"
     "crop_deposits" }o--|| "accounts" : "account"
     "crop_deposits" }o--|o "campaigns" : "campaign"
     "crop_deposits" }o--|| "crops" : "crop"
     "crop_deposits" }o--|o "deposits" : "deposit"
     "crop_deposits" }o--|o "fields" : "field"
-    "crop_deposits" }o--|o "field_lots" : "lot"
+    "crop_deposits" }o--|o "lots" : "lot"
     "exit_fields" }o--|| "accounts" : "account"
     "exit_fields" }o--|o "campaigns" : "campaign"
     "exit_fields" }o--|o "fields" : "field"
-    "exit_fields" }o--|o "field_lots" : "lot"
+    "exit_fields" }o--|o "lots" : "lot"
     "exit_fields" }o--|o "crops" : "crop"
     "exit_fields" }o--|o "deposits" : "deposit"
     "exit_fields" }o--|o "vehicles" : "vehicle"
@@ -1065,7 +1074,7 @@ INACTIVE INACTIVE
     "productive_units" }o--|| "accounts" : "account"
     "productive_unit_fields" }o--|| "productive_units" : "productiveUnit"
     "productive_unit_fields" }o--|o "fields" : "field"
-    "productive_unit_fields" }o--|o "field_lots" : "lot"
+    "productive_unit_fields" }o--|o "lots" : "lot"
     "contract_sale_cereals" }o--|| "accounts" : "account"
     "contract_sale_cereals" }o--|o "campaigns" : "campaign"
     "contract_sale_cereals" }o--|o "companies" : "company"
@@ -1093,6 +1102,6 @@ INACTIVE INACTIVE
     "campaign_expenses" }o--|| "accounts" : "account"
     "campaign_expenses" }o--|o "campaigns" : "campaign"
     "campaign_expenses" }o--|o "fields" : "field"
-    "campaign_expenses" }o--|o "field_lots" : "lot"
+    "campaign_expenses" }o--|o "lots" : "lot"
     "campaign_expenses" }o--|o "crops" : "crop"
 ```

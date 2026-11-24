@@ -15,7 +15,8 @@ import { AccountModule } from './account/account.module';
 import { ZoneModule } from './zone/zone.module';
 import { DepositModule } from './deposit/deposit.module';
 import { FieldModule } from './field/field.module';
-import { FieldLotModule } from './field-lot/field-lot.module';
+import { LotLayoutModule } from './lot-layout/lot-layout.module';
+import { LotModule } from './lot/lot.module';
 import { CampaignModule } from './campaign/campaign.module';
 import { InputModule } from './input/input.module';
 import { LicenceTypeModule } from './licence-type/licence-type.module';
@@ -45,7 +46,8 @@ import { UsersModule } from './users/users.module';
     ZoneModule,
     DepositModule,
     FieldModule,
-    FieldLotModule,
+    LotLayoutModule,
+    LotModule,
     CampaignModule,
     InputModule,
     LicenceTypeModule,
