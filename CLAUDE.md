@@ -107,7 +107,8 @@ El `JwtAuthGuard` es global (APP_GUARD): todo endpoint exige token salvo `@Publi
   porque los permisos de usuario y el sidebar del front lo referencian; es inmutable (no está
   en el DTO de update).
 - Nombres de modelo: no usar nombres que choquen con NestJS (`Module` → `FeatureModule`).
-- Importación desde CouchDB: `scripts/` (fuera de la estructura de módulos, usan Prisma directo).
+- Importación desde CouchDB: `scripts/` (fuera de la estructura de módulos, usan Prisma directo;
+  `tsconfig.build.json` los excluye para que `nest build` deje `dist/main.js`, y corren con ts-node).
   `npm run import:couch-menus` trae system/modules/menu-modules: dry-run por defecto, `-- --apply`
   para escribir, idempotente; necesita `COUCHDB_URL` (y `COUCHDB_DB_SUFFIX=_stg` para staging).
   `npm run import:couch-fields` trae campos y lotes (KAN-65), mismas reglas; ver § PostGIS.
@@ -143,6 +144,12 @@ El `JwtAuthGuard` es global (APP_GUARD): todo endpoint exige token salvo `@Publi
   Desde una campaña abierta (`?campaignId=`) se copia, todas las campañas abiertas que lo
   compartían pasan a la copia y la escritura cae ahí (`LotLayoutBusiness.writableLayout`).
   Cerrar una campaña congela su layout (`CampaignBusiness.lockLayoutIfClosed`).
+- **Toda campaña tiene layout** (`Campaign.lotLayoutId` NOT NULL). Al crearla, con
+  `lotLayoutId` comparte ese layout ("continuar"); sin él se crea uno vacío con el nombre de la
+  campaña, en la misma transacción ("independiente" o primera campaña). Al borrarla se borra
+  su layout si queda sin campañas y sin lotes.
+- Límite del body JSON: 2 MB (`main.ts`), por las geometrías de hasta 10.000 vértices. Si se
+  pasa, el filtro global responde 413 `PAYLOAD_TOO_LARGE` (antes caía como 500).
 - **Importación desde CouchDB** (`scripts/import-couchdb-fields.ts`): `field.lotes` → layout
   "Base" (`legacyBranchId = 'legacy'`), cada `lotBranches[id]` → su layout; ids legacy en
   `legacyId`/`legacyUuid`/`legacyName`. El dry-run corre todo en una transacción que se

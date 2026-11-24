@@ -1004,7 +1004,7 @@ INACTIVE INACTIVE
     "campaigns" }o--|| "accounts" : "account"
     "campaigns" }o--|o "zones" : "zone"
     "campaigns" |o--|| "CampaignState" : "enum:state"
-    "campaigns" }o--|o "lot_layouts" : "lotLayout"
+    "campaigns" }o--|| "lot_layouts" : "lotLayout"
     "vehicles" }o--|| "accounts" : "account"
     "vehicles" }o--|o "vehicle_types" : "vehicleType"
     "vehicles" |o--|o "FuelType" : "enum:fuelType"

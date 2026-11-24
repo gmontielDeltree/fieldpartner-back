@@ -783,8 +783,8 @@ model Campaign {
   startDate   DateTime?
   endDate     DateTime?
   state       CampaignState @default(ACTIVE)
-  lotLayoutId String?
-  lotLayout   LotLayout?    @relation(fields: [lotLayoutId], references: [id], onDelete: Restrict)
+  lotLayoutId String
+  lotLayout   LotLayout     @relation(fields: [lotLayoutId], references: [id], onDelete: Restrict)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 

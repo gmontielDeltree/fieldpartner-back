@@ -19,7 +19,7 @@ export class CampaignService {
   async create(dto: CreateCampaignDto, caller: Caller, accountId?: string): Promise<CampaignDto> {
     const targetAccountId = resolveTargetAccount(caller, accountId);
     await this.campaignBusiness.assertReferencesInAccount(targetAccountId, dto);
-    const created = await this.campaignRepository.create(targetAccountId, dto);
+    const created = await this.campaignBusiness.create(targetAccountId, dto);
     await this.campaignBusiness.lockLayoutIfClosed(created);
     return created;
   }
@@ -45,7 +45,7 @@ export class CampaignService {
   }
 
   async remove(id: string, caller: Caller): Promise<CampaignDto> {
-    await this.findOne(id, caller);
-    return this.campaignRepository.remove(id);
+    const campaign = await this.findOne(id, caller);
+    return this.campaignBusiness.remove(campaign);
   }
 }

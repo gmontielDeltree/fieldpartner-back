@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { CampaignState } from '@prisma/client';
+import { CampaignState, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
@@ -11,8 +11,12 @@ const toDate = (value?: string) => (value ? new Date(value) : undefined);
 export class CampaignRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  create(accountId: string, dto: CreateCampaignDto): Promise<CampaignDto> {
-    return this.prisma.campaign.create({
+  create(
+    accountId: string,
+    dto: CreateCampaignDto & { lotLayoutId: string },
+    db: Prisma.TransactionClient = this.prisma,
+  ): Promise<CampaignDto> {
+    return db.campaign.create({
       data: { ...dto, accountId, startDate: toDate(dto.startDate), endDate: toDate(dto.endDate) },
       select: CAMPAIGN_SELECT,
     });
@@ -42,7 +46,7 @@ export class CampaignRepository {
     });
   }
 
-  remove(id: string): Promise<CampaignDto> {
-    return this.prisma.campaign.delete({ where: { id }, select: CAMPAIGN_SELECT });
+  remove(id: string, db: Prisma.TransactionClient = this.prisma): Promise<CampaignDto> {
+    return db.campaign.delete({ where: { id }, select: CAMPAIGN_SELECT });
   }
 }

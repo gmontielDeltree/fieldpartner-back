@@ -117,6 +117,22 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       };
     }
 
+    // ── body-parser errors (http-errors: 413 too large, 400 malformed JSON) ──
+    // They are thrown by Express before Nest, so they are not HttpExceptions.
+    const bodyError = exception as { type?: unknown; status?: unknown; expose?: unknown } | null;
+    if (bodyError?.expose === true && typeof bodyError.status === 'number' && bodyError.status < 500) {
+      const tooLarge = bodyError.type === 'entity.too.large';
+      return {
+        statusCode: bodyError.status,
+        code:       tooLarge ? 'PAYLOAD_TOO_LARGE' : this.httpStatusToCode(bodyError.status),
+        message:    tooLarge
+          ? 'El cuerpo de la solicitud supera el tamaño máximo permitido'
+          : bodyError.type === 'entity.parse.failed'
+            ? 'El cuerpo de la solicitud no es JSON válido'
+            : 'Solicitud inválida',
+      };
+    }
+
     // ── Unknown / unhandled ───────────────────────────────────────────────────
     return {
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
