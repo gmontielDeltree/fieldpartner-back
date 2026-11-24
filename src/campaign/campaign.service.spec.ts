@@ -23,7 +23,7 @@ describe('CampaignService (account scoping)', () => {
         count: jest.fn().mockResolvedValue(1),
       },
       zone: { count: jest.fn().mockResolvedValue(1) },
-      lotLayout: { count: jest.fn().mockResolvedValue(1) },
+      lotLayout: { count: jest.fn().mockResolvedValue(1), updateMany: jest.fn() },
     };
     service = new CampaignService(new CampaignRepository(prisma), new CampaignBusiness(prisma));
   });
@@ -64,6 +64,29 @@ describe('CampaignService (account scoping)', () => {
     expect(prisma.campaign.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: 'c1', accountId: 'acc-1' } }),
     );
+  });
+
+  it('closing a campaign locks its lot layout (KAN-65)', async () => {
+    prisma.campaign.findFirst.mockResolvedValue({ id: 'c1', accountId: 'acc-1', state: 'ACTIVE', lotLayoutId: 'ly1' });
+    prisma.campaign.update.mockResolvedValue({ id: 'c1', state: 'CLOSED', lotLayoutId: 'ly1' });
+    await service.update('c1', { state: 'CLOSED' }, admin);
+    expect(prisma.lotLayout.updateMany).toHaveBeenCalledWith({
+      where: { id: 'ly1', lockedAt: null },
+      data: { lockedAt: expect.any(Date) },
+    });
+  });
+
+  it('an open campaign does not lock its layout', async () => {
+    prisma.campaign.findFirst.mockResolvedValue({ id: 'c1', accountId: 'acc-1', state: 'ACTIVE', lotLayoutId: 'ly1' });
+    prisma.campaign.update.mockResolvedValue({ id: 'c1', state: 'ACTIVE', lotLayoutId: 'ly1' });
+    await service.update('c1', { name: 'x' }, admin);
+    expect(prisma.lotLayout.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('a closed campaign cannot change its lot layout', async () => {
+    prisma.campaign.findFirst.mockResolvedValue({ id: 'c1', accountId: 'acc-1', state: 'CLOSED', lotLayoutId: 'ly1' });
+    await expect(service.update('c1', { lotLayoutId: 'ly2' }, admin)).rejects.toBeInstanceOf(BusinessException);
+    expect(prisma.campaign.update).not.toHaveBeenCalled();
   });
 
   it('filters the list by account and state', async () => {

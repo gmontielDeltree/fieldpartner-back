@@ -1,0 +1,15 @@
+meta {
+  name: Delete or Archive Lot
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{baseUrl}}/lots/{{lotId}}
+  body: none
+  auth: none
+}
+
+params:query {
+  campaignId: {{campaignId}}
+}

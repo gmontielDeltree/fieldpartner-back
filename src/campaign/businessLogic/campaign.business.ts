@@ -1,4 +1,5 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
+import { CampaignState } from '@prisma/client';
 import { BusinessErrorCode, BusinessException } from '../../common/exceptions/business.exception';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -18,11 +19,11 @@ export class CampaignBusiness {
   async assertReferencesInAccount(accountId: string, refs: CampaignReferences): Promise<void> {
     const checks: Array<[string, Promise<number>]> = [];
     if (refs.zoneId) {
-      checks.push(['La zona', this.prisma.zone.count({ where: { id: refs.zoneId, accountId } })]);
+      checks.push(['La zona indicada', this.prisma.zone.count({ where: { id: refs.zoneId, accountId } })]);
     }
     if (refs.lotLayoutId) {
       checks.push([
-        'El layout de lotes',
+        'El layout de lotes indicado',
         this.prisma.lotLayout.count({ where: { id: refs.lotLayoutId, accountId } }),
       ]);
     }
@@ -31,10 +32,37 @@ export class CampaignBusiness {
       if ((await count) === 0) {
         throw new BusinessException(
           BusinessErrorCode.INVALID_REFERENCE,
-          `${label} indicada no existe en la cuenta`,
+          `${label} no existe en la cuenta`,
           HttpStatus.BAD_REQUEST,
         );
       }
     }
+  }
+
+  /** A closed campaign is history: it keeps its lot layout (KAN-65). */
+  assertLayoutChangeAllowed(
+    current: { state: CampaignState; lotLayoutId: string | null },
+    next: { lotLayoutId?: string | null },
+  ): void {
+    const changes = next.lotLayoutId !== undefined && next.lotLayoutId !== current.lotLayoutId;
+    if (changes && current.state === CampaignState.CLOSED) {
+      throw new BusinessException(
+        BusinessErrorCode.LOT_LAYOUT_LOCKED,
+        'Una campaña cerrada conserva su layout de lotes',
+        HttpStatus.CONFLICT,
+      );
+    }
+  }
+
+  /**
+   * Closing a campaign locks its layout: from then on edits from open campaigns that share it
+   * work on a copy (see LotLayoutBusiness.writableLayout).
+   */
+  async lockLayoutIfClosed(campaign: { state: CampaignState; lotLayoutId: string | null }): Promise<void> {
+    if (campaign.state !== CampaignState.CLOSED || !campaign.lotLayoutId) return;
+    await this.prisma.lotLayout.updateMany({
+      where: { id: campaign.lotLayoutId, lockedAt: null },
+      data: { lockedAt: new Date() },
+    });
   }
 }

@@ -1,0 +1,25 @@
+meta {
+  name: Create Lot Layout
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/lot-layouts
+  body: json
+  auth: none
+}
+
+params:query {
+  accountId: {{accountId}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Base"
+  }
+}

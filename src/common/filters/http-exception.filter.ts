@@ -15,6 +15,7 @@ interface ErrorResponse {
   code: string;
   message: string;
   errors?: string[];
+  details?: unknown;
   timestamp: string;
   path: string;
 }
@@ -28,7 +29,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request  = ctx.getRequest<Request>();
 
-    const { statusCode, code, message, errors } = this.normalize(exception);
+    const { statusCode, code, message, errors, details } = this.normalize(exception);
 
     // Log 5xx as errors, 4xx as warnings (expected business failures are noise at error level)
     if (statusCode >= 500) {
@@ -42,6 +43,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       code,
       message,
       ...(errors?.length && { errors }),
+      ...(details !== undefined && { details }),
       timestamp: new Date().toISOString(),
       path: request.url,
     };
@@ -54,6 +56,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     code: string;
     message: string;
     errors?: string[];
+    details?: unknown;
   } {
     // ── BusinessException (our domain errors with explicit code) ─────────────
     if (exception instanceof BusinessException) {
@@ -62,6 +65,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         statusCode: exception.getStatus(),
         code:       body.code,
         message:    body.message,
+        details:    exception.details,
       };
     }
 

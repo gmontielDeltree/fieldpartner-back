@@ -133,6 +133,15 @@ El `JwtAuthGuard` es global (APP_GUARD): todo endpoint exige token salvo `@Publi
 - Las FK hacia `fields` y `lots` desde stock, salidas, movimientos, depósitos de granos,
   unidades productivas y gastos son `RESTRICT`: con referencias se archiva (`archivedAt`), no
   se borra.
+- El SQL espacial común (normalizar, lote dentro del campo, superposiciones, recorte) está en
+  `src/common/geo/geometry.repository.ts`; las tolerancias, en `geo.types.ts` (1 % relativo).
+- **Escrituras de lotes:** una transacción que bloquea (`FOR UPDATE`) primero el layout y
+  después el campo; un cambio de contorno bloquea el campo. Mantener ese orden para no armar
+  deadlocks.
+- **Layout congelado** (`lockedAt`, o lo usa una campaña cerrada): no se edita en el lugar.
+  Desde una campaña abierta (`?campaignId=`) se copia, todas las campañas abiertas que lo
+  compartían pasan a la copia y la escritura cae ahí (`LotLayoutBusiness.writableLayout`).
+  Cerrar una campaña congela su layout (`CampaignBusiness.lockLayoutIfClosed`).
 
 ## 4. Tests y verificación
 
@@ -164,9 +173,10 @@ Detectada en la revisión del 2026-11-19 (waves 1–3 del backoffice):
   `businessLogic/users.business.ts`; el service quedó como fachada.
 - ~~**[ALTA] IDOR en zones, deposits, campaigns e inputs.**~~ **Corregido (2026-11-20, KAN-64):**
   scoping por cuenta desde `req.caller`, `@Roles`, DTOs de respuesta y validación de referencias.
-- ~~**[ALTA] `fields` y `field-lots` siguen sin `@Roles` ni scoping.**~~ **Mitigado
-  (2026-11-24, KAN-65):** se eliminaron esos módulos junto con el modelo viejo. La API nueva
-  de campos / layouts / lotes (con `@Roles` y scoping por cuenta) está pendiente dentro de KAN-65.
+- ~~**[ALTA] `fields` y `field-lots` siguen sin `@Roles` ni scoping.**~~ **Corregido
+  (2026-11-24, KAN-65):** se reemplazaron por `fields`, `lot-layouts` y `lots` (PostGIS), con
+  `@Roles(...ACCOUNT_DATA_ROLES)` y scoping por cuenta (los lotes, a través de su layout);
+  lo cubre `src/lot/fields-lots.scoping.spec.ts`.
 - **[BAJA] `accounts.accountReference`:** se sacó del schema en `746d42d` sin migración. Una
   base creada desde las migraciones conserva la columna, y `migrate diff` propone borrarla.
   Necesita su propia migración (no se mezcló con KAN-65).

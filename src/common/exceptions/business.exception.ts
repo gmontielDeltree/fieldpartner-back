@@ -21,6 +21,15 @@ export enum BusinessErrorCode {
   LICENCE_EXPIRED            = 'LICENCE_EXPIRED',
   LICENCE_LIMIT_EXCEEDED     = 'LICENCE_LIMIT_EXCEEDED',
 
+  // ── Fields / lots (KAN-65) ────────────────────────────────────────────────
+  GEOMETRY_INVALID           = 'GEOMETRY_INVALID',
+  LOT_OUTSIDE_FIELD          = 'LOT_OUTSIDE_FIELD',
+  LOT_OVERLAP                = 'LOT_OVERLAP',
+  FIELD_LOTS_OUTSIDE         = 'FIELD_LOTS_OUTSIDE',
+  LOT_LAYOUT_LOCKED          = 'LOT_LAYOUT_LOCKED',
+  LOT_LAYOUT_IN_USE          = 'LOT_LAYOUT_IN_USE',
+  RECORD_ARCHIVED            = 'RECORD_ARCHIVED',
+
   // ── General ───────────────────────────────────────────────────────────────
   INVALID_COUNTRY_CODE       = 'INVALID_COUNTRY_CODE',
   RECORD_NOT_FOUND           = 'RECORD_NOT_FOUND',
@@ -46,7 +55,9 @@ export class BusinessException extends HttpException {
     public readonly code: BusinessErrorCode,
     message: string,
     httpStatus: HttpStatus = HttpStatus.BAD_REQUEST,
+    /** Optional machine-readable context (e.g. the lots that block an operation). */
+    public readonly details?: unknown,
   ) {
-    super({ code, message }, httpStatus);
+    super({ code, message, ...(details !== undefined && { details }) }, httpStatus);
   }
 }

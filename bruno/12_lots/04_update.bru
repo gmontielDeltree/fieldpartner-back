@@ -1,0 +1,25 @@
+meta {
+  name: Update Lot
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/lots/{{lotId}}
+  body: json
+  auth: none
+}
+
+params:query {
+  campaignId: {{campaignId}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Lote 1 (oeste)"
+  }
+}

@@ -64,6 +64,9 @@ Base URL: `http://localhost:4001`
 | Accounts | `/accounts` |
 | Zones | `/zones` |
 | Deposits | `/deposits` |
+| Fields (PostGIS) | `/fields` |
+| Lot layouts | `/lot-layouts` |
+| Lots (PostGIS) | `/lots` |
 | Campaigns | `/campaigns` |
 | Inputs | `/inputs` |
 
