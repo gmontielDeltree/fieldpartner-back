@@ -110,6 +110,7 @@ El `JwtAuthGuard` es global (APP_GUARD): todo endpoint exige token salvo `@Publi
 - Importación desde CouchDB: `scripts/` (fuera de la estructura de módulos, usan Prisma directo).
   `npm run import:couch-menus` trae system/modules/menu-modules: dry-run por defecto, `-- --apply`
   para escribir, idempotente; necesita `COUCHDB_URL` (y `COUCHDB_DB_SUFFIX=_stg` para staging).
+  `npm run import:couch-fields` trae campos y lotes (KAN-65), mismas reglas; ver § PostGIS.
 - Si un cambio afecta datos de referencia, actualizar `prisma/seed.sql` (idempotente,
   `ON CONFLICT`).
 
@@ -142,6 +143,14 @@ El `JwtAuthGuard` es global (APP_GUARD): todo endpoint exige token salvo `@Publi
   Desde una campaña abierta (`?campaignId=`) se copia, todas las campañas abiertas que lo
   compartían pasan a la copia y la escritura cae ahí (`LotLayoutBusiness.writableLayout`).
   Cerrar una campaña congela su layout (`CampaignBusiness.lockLayoutIfClosed`).
+- **Importación desde CouchDB** (`scripts/import-couchdb-fields.ts`): `field.lotes` → layout
+  "Base" (`legacyBranchId = 'legacy'`), cada `lotBranches[id]` → su layout; ids legacy en
+  `legacyId`/`legacyUuid`/`legacyName`. El dry-run corre todo en una transacción que se
+  revierte (el informe incluye los chequeos de PostGIS). No rechaza datos legacy: repara con
+  `ST_MakeValid`, recorta hasta el 1 % y avisa lo demás (lotes fuera del campo o superpuestos).
+  **No importa campañas:** el importador de campañas debe poner
+  `lotLayoutId` = layout con `legacyBranchId = campaign.lotBranchId ?? 'legacy'`. La cuenta
+  de Postgres tiene que tener el mismo id que en CouchDB (o `--account=… --into=…`).
 
 ## 4. Tests y verificación
 
