@@ -23,15 +23,15 @@ describe('CampaignService (account scoping)', () => {
         count: jest.fn().mockResolvedValue(1),
       },
       zone: { count: jest.fn().mockResolvedValue(1) },
-      field: { count: jest.fn().mockResolvedValue(1) },
+      lotLayout: { count: jest.fn().mockResolvedValue(1) },
     };
     service = new CampaignService(new CampaignRepository(prisma), new CampaignBusiness(prisma));
   });
 
   it('creates in the caller account after checking references against it', async () => {
-    await service.create({ name: '24/25', zoneId: 'z1', fieldId: 'f1' }, admin);
+    await service.create({ name: '24/25', zoneId: 'z1', lotLayoutId: 'ly1' }, admin);
     expect(prisma.zone.count).toHaveBeenCalledWith({ where: { id: 'z1', accountId: 'acc-1' } });
-    expect(prisma.field.count).toHaveBeenCalledWith({ where: { id: 'f1', accountId: 'acc-1' } });
+    expect(prisma.lotLayout.count).toHaveBeenCalledWith({ where: { id: 'ly1', accountId: 'acc-1' } });
     expect(prisma.campaign.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ accountId: 'acc-1', zoneId: 'z1' }) }),
     );
@@ -39,8 +39,7 @@ describe('CampaignService (account scoping)', () => {
 
   it.each([
     ['zoneId', 'zone'],
-    ['fieldId', 'field'],
-    ['lotBranchSourceCampaignId', 'campaign'],
+    ['lotLayoutId', 'lotLayout'],
   ])('rejects a %s from another account', async (key, model) => {
     prisma[model].count.mockResolvedValue(0);
     await expect(service.create({ name: '24/25', [key]: 'other' }, admin)).rejects.toBeInstanceOf(

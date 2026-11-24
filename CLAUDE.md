@@ -113,6 +113,27 @@ El `JwtAuthGuard` es global (APP_GUARD): todo endpoint exige token salvo `@Publi
 - Si un cambio afecta datos de referencia, actualizar `prisma/seed.sql` (idempotente,
   `ON CONFLICT`).
 
+### PostGIS (campos y lotes, KAN-65)
+
+- La base necesita la extensión `postgis` (imagen local `postgis/postgis:16-3.5-alpine`; en
+  staging/producción `CREATE EXTENSION` lo corre un superusuario / `rds_superuser`).
+- `Field.geometry` y `Lot.geometry` son `geometry(MultiPolygon,4326)` declarados como
+  `Unsupported(...)`: el cliente de Prisma **no puede leerlos ni escribirlos**, y tampoco
+  `create` en esos modelos. Las escrituras y lecturas de geometría van con SQL a mano
+  (`$queryRaw` con parámetros, nunca `$queryRawUnsafe` con strings armados) **solo en el
+  repository**, normalizando: `ST_Multi(ST_Force2D(...))`, `ST_ForcePolygonCCW` (RFC 7946),
+  `ST_ReducePrecision(..., 1e-7)`. Geometría inválida por API → 400 con `ST_IsValidReason`.
+- `hectares` es una columna **generada** (`ST_Area(geometry::geography)/10000`, geodésica): no
+  se escribe nunca; en el schema figura como `@default(dbgenerated(...))` para que Prisma no
+  la vea como desfase. `declaredHectares` es la superficie catastral cargada a mano.
+- La migración agrega cosas que `schema.prisma` no expresa: `CHECK` de geometría válida y no
+  vacía, y el índice único parcial `lots_fieldId_layoutId_name_active_key`
+  (`lower(name)` entre los no archivados). Si una migración generada con `migrate dev`
+  propone borrarlos, es un error: sacarlo a mano.
+- Las FK hacia `fields` y `lots` desde stock, salidas, movimientos, depósitos de granos,
+  unidades productivas y gastos son `RESTRICT`: con referencias se archiva (`archivedAt`), no
+  se borra.
+
 ## 4. Tests y verificación
 
 - Toda lógica en `businessLogic/` y toda regla de autorización (roles, scoping) lleva un
@@ -143,10 +164,12 @@ Detectada en la revisión del 2026-11-19 (waves 1–3 del backoffice):
   `businessLogic/users.business.ts`; el service quedó como fachada.
 - ~~**[ALTA] IDOR en zones, deposits, campaigns e inputs.**~~ **Corregido (2026-11-20, KAN-64):**
   scoping por cuenta desde `req.caller`, `@Roles`, DTOs de respuesta y validación de referencias.
-- **[ALTA] `fields` y `field-lots` siguen sin `@Roles` ni scoping** (`accountId` por query,
-  get/patch/delete por id sin chequear la cuenta). No se parcharon a propósito: su modelo
-  (geometría, lotes, ramas por campaña) se rediseña en KAN-65 y el scoping va con ese cambio.
-  No exponerlos a ningún frontend hasta entonces.
+- ~~**[ALTA] `fields` y `field-lots` siguen sin `@Roles` ni scoping.**~~ **Mitigado
+  (2026-11-24, KAN-65):** se eliminaron esos módulos junto con el modelo viejo. La API nueva
+  de campos / layouts / lotes (con `@Roles` y scoping por cuenta) está pendiente dentro de KAN-65.
+- **[BAJA] `accounts.accountReference`:** se sacó del schema en `746d42d` sin migración. Una
+  base creada desde las migraciones conserva la columna, y `migrate diff` propone borrarla.
+  Necesita su propia migración (no se mezcló con KAN-65).
 - ~~**[BAJA] Catálogos devuelven la entidad cruda.**~~ **Corregido (2026-11-19):** los 7
   catálogos usan `<DOMINIO>_SELECT` + `<Model>Dto` (`Prisma.<Model>GetPayload`) en todas las
   queries del repository.

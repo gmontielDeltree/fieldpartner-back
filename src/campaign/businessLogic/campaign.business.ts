@@ -4,8 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 export interface CampaignReferences {
   zoneId?: string | null;
-  fieldId?: string | null;
-  lotBranchSourceCampaignId?: string | null;
+  lotLayoutId?: string | null;
 }
 
 @Injectable()
@@ -13,7 +12,7 @@ export class CampaignBusiness {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * A campaign may only point to a zone, field or source campaign of its own account.
+   * A campaign may only point to a zone or lot layout of its own account.
    * Without this check a caller could attach another account's records by id (IDOR).
    */
   async assertReferencesInAccount(accountId: string, refs: CampaignReferences): Promise<void> {
@@ -21,13 +20,10 @@ export class CampaignBusiness {
     if (refs.zoneId) {
       checks.push(['La zona', this.prisma.zone.count({ where: { id: refs.zoneId, accountId } })]);
     }
-    if (refs.fieldId) {
-      checks.push(['El campo', this.prisma.field.count({ where: { id: refs.fieldId, accountId } })]);
-    }
-    if (refs.lotBranchSourceCampaignId) {
+    if (refs.lotLayoutId) {
       checks.push([
-        'La campaña de origen',
-        this.prisma.campaign.count({ where: { id: refs.lotBranchSourceCampaignId, accountId } }),
+        'El layout de lotes',
+        this.prisma.lotLayout.count({ where: { id: refs.lotLayoutId, accountId } }),
       ]);
     }
 

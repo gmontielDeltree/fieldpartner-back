@@ -64,7 +64,6 @@ Base URL: `http://localhost:4001`
 | Accounts | `/accounts` |
 | Zones | `/zones` |
 | Deposits | `/deposits` |
-| Fields | `/fields` |
 | Campaigns | `/campaigns` |
 | Inputs | `/inputs` |
 

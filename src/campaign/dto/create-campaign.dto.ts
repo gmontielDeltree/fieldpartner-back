@@ -1,18 +1,15 @@
 import { IsString, IsNotEmpty, IsOptional, IsEnum, IsDateString } from 'class-validator';
-import { CampaignState, LotBranchMode } from '@prisma/client';
+import { CampaignState } from '@prisma/client';
 
 /**
  * The account comes from the caller (or `?accountId=` for a GENERAL_ADMIN), never the body.
- * zoneId / fieldId / lotBranchSourceCampaignId must belong to that same account.
+ * A campaign covers every field of the account (KAN-65); zoneId / lotLayoutId must belong to
+ * that same account. "Continue" vs "independent" layout handling lands with the lots API.
  */
 export class CreateCampaignDto {
   @IsOptional()
   @IsString()
   zoneId?: string;
-
-  @IsOptional()
-  @IsString()
-  fieldId?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -40,13 +37,5 @@ export class CreateCampaignDto {
 
   @IsOptional()
   @IsString()
-  lotBranchId?: string;
-
-  @IsOptional()
-  @IsEnum(LotBranchMode)
-  lotBranchMode?: LotBranchMode;
-
-  @IsOptional()
-  @IsString()
-  lotBranchSourceCampaignId?: string;
+  lotLayoutId?: string;
 }
