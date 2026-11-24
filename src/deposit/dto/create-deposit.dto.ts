@@ -1,10 +1,7 @@
 import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsNumber } from 'class-validator';
 
+/** The account comes from the caller (or `?accountId=` for a GENERAL_ADMIN), never the body. */
 export class CreateDepositDto {
-  @IsString()
-  @IsNotEmpty()
-  accountId: string;
-
   @IsString()
   @IsNotEmpty()
   description: string;

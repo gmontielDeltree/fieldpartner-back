@@ -1,11 +1,11 @@
 import { IsString, IsNotEmpty, IsOptional, IsEnum, IsDateString } from 'class-validator';
 import { CampaignState, LotBranchMode } from '@prisma/client';
 
+/**
+ * The account comes from the caller (or `?accountId=` for a GENERAL_ADMIN), never the body.
+ * zoneId / fieldId / lotBranchSourceCampaignId must belong to that same account.
+ */
 export class CreateCampaignDto {
-  @IsString()
-  @IsNotEmpty()
-  accountId: string;
-
   @IsOptional()
   @IsString()
   zoneId?: string;

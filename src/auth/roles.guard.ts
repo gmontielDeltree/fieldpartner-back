@@ -61,8 +61,9 @@ export class RolesGuard implements CanActivate {
     // 1) Trust the signed token claim when present.
     if (principal.role) {
       let accountId = principal.accountId ?? null;
-      // ADMIN scoping needs accountId; if the token didn't carry it, resolve it from the DB.
-      if (accountId === null && principal.role === UserRole.ADMIN) {
+      // Account scoping (ADMIN and USER) needs accountId; if the token didn't carry it,
+      // resolve it from the DB.
+      if (accountId === null && principal.role !== UserRole.GENERAL_ADMIN) {
         const dbUser = await this.prisma.user.findUnique({
           where: { cognitoId: principal.cognitoId },
           select: { licence: { select: { accountId: true } } },

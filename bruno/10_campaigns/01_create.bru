@@ -10,13 +10,16 @@ post {
   auth: none
 }
 
+params:query {
+  accountId: {{accountId}}
+}
+
 headers {
   Content-Type: application/json
 }
 
 body:json {
   {
-    "accountId": "{{accountId}}",
     "fieldId": "{{fieldId}}",
     "name": "Campaña 2026/2027",
     "zafra": "2026/27",

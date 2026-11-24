@@ -62,6 +62,19 @@ El `JwtAuthGuard` es global (APP_GUARD): todo endpoint exige token salvo `@Publi
 2. **Ownership / IDOR.** Todo `:id` que pertenezca a una cuenta se valida contra
    `req.caller.accountId` (ver `AccountController.assertOwnership` y el scoping de
    `UsersService`). Los listados se filtran por cuenta en la query, no después.
+   - **Datos por cuenta (patrón de referencia: `src/zone/`):** controller con
+     `@UseGuards(RolesGuard)` + `@Roles(...ACCOUNT_DATA_ROLES)` a nivel clase (sin eso el guard
+     no resuelve `req.caller`). Helpers en `src/auth/account-scope.ts`:
+     `resolveTargetAccount(caller, query.accountId)` para listar/crear (GENERAL_ADMIN elige la
+     cuenta con `?accountId=` — `AccountScopeQueryDto` —, el resto queda forzado a la suya y
+     otra cuenta da 403) y `accountFilter(caller)` para get/patch/delete por id: el repository
+     hace `findFirst({ id, accountId })` y otra cuenta da **404**. El `accountId` no va en los
+     DTOs de input.
+   - **Referencias a otras entidades de la cuenta** (`zoneId`, `fieldId`, `replacementId`…)
+     se validan contra la misma cuenta en `businessLogic/` (ver `CampaignBusiness`); si no, se
+     cuelga un registro de otra cuenta por id.
+   - **Insumos de plataforma** (`Input.accountId = null`): los lee cualquier autenticado, solo
+     GENERAL_ADMIN los escribe (`InputBusiness`).
 3. **El rol y la cuenta salen de `req.caller`** (resuelto por `RolesGuard` desde la DB o desde
    claims firmados). Nunca del body, query ni headers. Los DTOs de input no aceptan `role`,
    `accountId` ni `isAdmin` salvo que el business los valide contra el caller.
@@ -128,6 +141,12 @@ Detectada en la revisión del 2026-11-19 (waves 1–3 del backoffice):
 - ~~**[MEDIA] `users/` no sigue la estructura.**~~ **Corregido (2026-11-19):** queries en
   `users.repository.ts`, alta/edición (Cognito + compensación, scoping por rol) en
   `businessLogic/users.business.ts`; el service quedó como fachada.
+- ~~**[ALTA] IDOR en zones, deposits, campaigns e inputs.**~~ **Corregido (2026-11-20, KAN-64):**
+  scoping por cuenta desde `req.caller`, `@Roles`, DTOs de respuesta y validación de referencias.
+- **[ALTA] `fields` y `field-lots` siguen sin `@Roles` ni scoping** (`accountId` por query,
+  get/patch/delete por id sin chequear la cuenta). No se parcharon a propósito: su modelo
+  (geometría, lotes, ramas por campaña) se rediseña en KAN-65 y el scoping va con ese cambio.
+  No exponerlos a ningún frontend hasta entonces.
 - ~~**[BAJA] Catálogos devuelven la entidad cruda.**~~ **Corregido (2026-11-19):** los 7
   catálogos usan `<DOMINIO>_SELECT` + `<Model>Dto` (`Prisma.<Model>GetPayload`) en todas las
   queries del repository.

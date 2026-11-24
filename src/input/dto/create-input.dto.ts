@@ -4,11 +4,12 @@ import {
 } from 'class-validator';
 import { Labor } from '@prisma/client';
 
+/**
+ * The owner account comes from the caller, never the body: an account user creates inputs in
+ * their own account; a GENERAL_ADMIN picks one with `?accountId=` or, without it, creates a
+ * platform input (accountId null). replacementId must be visible to that owner.
+ */
 export class CreateInputDto {
-  @IsOptional()
-  @IsString()
-  accountId?: string;
-
   @IsOptional()
   @IsString()
   countryId?: string;
