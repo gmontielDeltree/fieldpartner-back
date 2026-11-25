@@ -14,6 +14,8 @@ export enum BusinessErrorCode {
   INVALID_CODE               = 'INVALID_CODE',
   CODE_EXPIRED               = 'CODE_EXPIRED',
   TOO_MANY_ATTEMPTS          = 'TOO_MANY_ATTEMPTS',
+  /** NEW_PASSWORD_REQUIRED: the challenge session expired or was already used; log in again. */
+  CHALLENGE_EXPIRED          = 'CHALLENGE_EXPIRED',
 
   // ── Account ───────────────────────────────────────────────────────────────
   ACCOUNT_INACTIVE           = 'ACCOUNT_INACTIVE',

@@ -123,7 +123,9 @@ El `JwtAuthGuard` es global (APP_GUARD): todo endpoint exige token salvo `@Publi
 - Errores de Cognito con código propio (`USER_NOT_CONFIRMED`, `INVALID_CODE`, `CODE_EXPIRED`,
   `TOO_MANY_ATTEMPTS`, `EMAIL_NOT_VERIFIED`…). `forgot-password` y `resend-verification-code`
   contestan lo mismo para un email que no existe, y un código contra un email que no existe da
-  `INVALID_CODE`: son públicos y no deben listar emails.
+  `INVALID_CODE`: son públicos y no deben listar emails. `complete-new-password` responde
+  `PASSWORD_POLICY_VIOLATION` o `CHALLENGE_EXPIRED` (la sesión del desafío dura unos minutos y es
+  de un solo uso: el front vuelve al login).
 - `modules` (permisos de menú) todavía no sale en el login: depende de KAN-57.
 
 ## 3. Prisma

@@ -287,7 +287,29 @@ export class CognitoService {
 
       return toAuthTokens(result.AuthenticationResult);
     } catch (error) {
-      throw new BadRequestException(`Challenge failed: ${error.message}`);
+      if (error instanceof BusinessException || error instanceof InternalServerErrorException) throw error;
+      switch (awsErrorName(error)) {
+        case 'InvalidPasswordException':
+          throw new BusinessException(
+            BusinessErrorCode.PASSWORD_POLICY_VIOLATION,
+            'La nueva contraseña no cumple los requisitos de seguridad',
+            HttpStatus.BAD_REQUEST,
+          );
+        // The login session of the challenge lasts a few minutes and is single-use.
+        case 'NotAuthorizedException':
+        case 'CodeMismatchException':
+        case 'ExpiredCodeException':
+          throw new BusinessException(
+            BusinessErrorCode.CHALLENGE_EXPIRED,
+            'Venció el tiempo para crear la contraseña: volvé a iniciar sesión',
+            HttpStatus.BAD_REQUEST,
+          );
+        case 'LimitExceededException':
+        case 'TooManyRequestsException':
+          throw tooManyAttempts();
+        default:
+          throw new InternalServerErrorException(`New password challenge failed: ${awsErrorName(error)}`);
+      }
     }
   }
 
