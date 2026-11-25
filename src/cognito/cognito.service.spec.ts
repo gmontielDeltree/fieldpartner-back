@@ -131,6 +131,33 @@ describe('CognitoService error mapping', () => {
     });
   });
 
+  describe('disable / enable (KAN-68)', () => {
+    it('disables and enables by email in the pool', async () => {
+      send.mockResolvedValue({});
+      await service.adminDisableUser('a@b.com');
+      await service.adminEnableUser('a@b.com');
+      expect(send.mock.calls.map(([command]) => [command.constructor.name, command.input])).toEqual([
+        ['AdminDisableUserCommand', { UserPoolId: 'test-AWS_COGNITO_USER_POOL_ID', Username: 'a@b.com' }],
+        ['AdminEnableUserCommand', { UserPoolId: 'test-AWS_COGNITO_USER_POOL_ID', Username: 'a@b.com' }],
+      ]);
+    });
+
+    it('disabling a user missing from Cognito is not an error (it cannot log in anyway)', async () => {
+      send.mockRejectedValue(awsError('UserNotFoundException'));
+      await expect(service.adminDisableUser('a@b.com')).resolves.toBeUndefined();
+    });
+
+    it('enabling a user missing from Cognito is a 409 USER_NOT_FOUND', async () => {
+      send.mockRejectedValue(awsError('UserNotFoundException'));
+      expect(await codeOf(service.adminEnableUser('a@b.com'))).toEqual({ code: 'USER_NOT_FOUND', status: 409 });
+    });
+
+    it('any other AWS error is a 500', async () => {
+      send.mockRejectedValue(awsError('InternalErrorException'));
+      await expect(service.adminDisableUser('a@b.com')).rejects.toMatchObject({ status: 500 });
+    });
+  });
+
   it('confirm-forgot-password maps a wrong or expired code', async () => {
     send.mockRejectedValueOnce(awsError('CodeMismatchException'));
     expect((await codeOf(service.confirmForgotPassword('a@b.com', '1', 'Secret123!'))).code).toBe('INVALID_CODE');

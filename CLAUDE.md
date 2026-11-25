@@ -134,6 +134,13 @@ El `JwtAuthGuard` es global (APP_GUARD): todo endpoint exige token salvo `@Publi
   `/users` es solo para GENERAL_ADMIN y ADMIN, con scoping por cuenta. Un id de menú inexistente
   da 400 `INVALID_REFERENCE` con `details.menuIds`. No hay importador de `modules-users`: Postgres
   arranca de cero.
+- **Baja de usuarios (KAN-68):** `POST /users/:id/deactivate` deshabilita en Cognito
+  (`AdminDisableUser`), deja el estado `INACTIVE` (libera el lugar de la licencia), borra la sesión
+  única y cierra las sesiones (`AdminUserGlobalSignOut`). No se borra nada y es idempotente. Nadie
+  se desactiva a sí mismo (403 `CANNOT_DEACTIVATE_SELF`) y un ADMIN no desactiva a un
+  GENERAL_ADMIN. `POST /users/:id/reactivate` rehabilita en Cognito y deja `PENDING`: el próximo
+  login vuelve a ocupar un lugar con el control de cupo. Solo desde `INACTIVE` (`SUSPENDED` y
+  `CANCELLED` → 409 `INVALID_USER_STATE`). Cognito va primero; si falla la base, se revierte.
 
 ## 3. Prisma
 

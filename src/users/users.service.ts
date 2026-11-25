@@ -35,6 +35,16 @@ export class UsersService {
     return this.usersBusiness.executeReplacePermissions(id, menuIds, caller);
   }
 
+  /** Deactivates a user (Cognito disabled, state INACTIVE), scoped to the caller. */
+  deactivate(id: string, caller: Caller): Promise<UserDetailDto> {
+    return this.usersBusiness.executeDeactivate(id, caller);
+  }
+
+  /** Reactivates an INACTIVE user (back to PENDING), scoped to the caller. */
+  reactivate(id: string, caller: Caller): Promise<UserDetailDto> {
+    return this.usersBusiness.executeReactivate(id, caller);
+  }
+
   /** The caller's own user and permissions. */
   findMe(caller: Caller): Promise<UserWithPermissionsDto> {
     return this.usersBusiness.findOwnProfile(caller);

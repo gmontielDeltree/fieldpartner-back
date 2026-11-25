@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, UserState } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { USER_DETAIL_SELECT, USER_WITH_PERMISSIONS_SELECT } from './dto/account-users.dto';
 
@@ -47,11 +47,33 @@ export class UsersRepository {
     });
   }
 
-  /** Minimal data needed to authorize an operation on a user (scope check). */
+  /**
+   * Minimal data needed to authorize an operation on a user (scope check). `cognitoId` is only
+   * compared with the caller's (never returned).
+   */
   findScopeTarget(id: string) {
     return this.prisma.user.findUnique({
       where: { id },
-      select: { id: true, email: true, licence: { select: { accountId: true } } },
+      select: {
+        id: true,
+        email: true,
+        cognitoId: true,
+        role: true,
+        state: true,
+        licence: { select: { accountId: true } },
+      },
+    });
+  }
+
+  /**
+   * Changes the user's state (KAN-68). Leaving the session empty ends the single session: an
+   * old token of a deactivated user is rejected anyway (USER_INACTIVE).
+   */
+  updateState(id: string, state: UserState) {
+    return this.prisma.user.update({
+      where: { id },
+      data: { state, ...(state === UserState.INACTIVE && { activeSessionId: null }) },
+      select: USER_DETAIL_SELECT,
     });
   }
 
