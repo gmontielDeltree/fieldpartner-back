@@ -9,6 +9,10 @@ export class LoginUserDto {
   photoName?: string;
   accountId: string;
   accountName: string;
+  /** Company logo of the account (Cat A), if it has one. */
+  accountLogo?: string;
+  /** Licence the user belongs to (seat). */
+  licenceId: string;
   countryCode: string;
   currency: string;
 }

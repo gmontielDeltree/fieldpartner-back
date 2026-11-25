@@ -15,6 +15,8 @@ import {
   ChangePasswordCommand,
   ForgotPasswordCommand,
   ConfirmForgotPasswordCommand,
+  ConfirmSignUpCommand,
+  ResendConfirmationCodeCommand,
   UsernameExistsException,
   InvalidPasswordException,
   InvalidParameterException,
@@ -64,6 +66,42 @@ function toAuthTokens(
     throw new InternalServerErrorException('Respuesta de autenticación incompleta');
   }
   return { accessToken, refreshToken, expiresIn };
+}
+
+/** AWS SDK errors are classes, but matching by name also covers mocks and wrapped errors. */
+const awsErrorName = (error: unknown): string | undefined =>
+  error && typeof error === 'object' && 'name' in error ? String((error as { name: unknown }).name) : undefined;
+
+const tooManyAttempts = () =>
+  new BusinessException(
+    BusinessErrorCode.TOO_MANY_ATTEMPTS,
+    'Demasiados intentos: esperá unos minutos y volvé a probar',
+    HttpStatus.TOO_MANY_REQUESTS,
+  );
+
+/**
+ * Errors shared by the flows that take an emailed code (sign-up confirmation, password reset).
+ * A user that does not exist gets the same answer as a wrong code, so the public endpoints do
+ * not reveal which emails are registered. Returns undefined for errors the caller maps itself.
+ */
+function codeFlowError(error: unknown): BusinessException | undefined {
+  switch (awsErrorName(error)) {
+    case 'CodeMismatchException':
+    case 'UserNotFoundException':
+      return new BusinessException(BusinessErrorCode.INVALID_CODE, 'El código es incorrecto', HttpStatus.BAD_REQUEST);
+    case 'ExpiredCodeException':
+      return new BusinessException(
+        BusinessErrorCode.CODE_EXPIRED,
+        'El código venció: pedí uno nuevo',
+        HttpStatus.BAD_REQUEST,
+      );
+    case 'LimitExceededException':
+    case 'TooManyFailedAttemptsException':
+    case 'TooManyRequestsException':
+      return tooManyAttempts();
+    default:
+      return undefined;
+  }
 }
 
 @Injectable()
@@ -202,6 +240,23 @@ export class CognitoService {
           HttpStatus.UNAUTHORIZED,
         );
       }
+      // Only reachable with the right password: Cognito checks it before these states.
+      switch (awsErrorName(error)) {
+        case 'UserNotConfirmedException':
+          throw new BusinessException(
+            BusinessErrorCode.USER_NOT_CONFIRMED,
+            'Tenés que confirmar tu email antes de ingresar: revisá el código que te enviamos',
+            HttpStatus.FORBIDDEN,
+          );
+        case 'PasswordResetRequiredException':
+          throw new BusinessException(
+            BusinessErrorCode.PASSWORD_RESET_REQUIRED,
+            'Tenés que restablecer tu contraseña: usá "Olvidé mi contraseña"',
+            HttpStatus.FORBIDDEN,
+          );
+        case 'TooManyRequestsException':
+          throw tooManyAttempts();
+      }
       throw new InternalServerErrorException(`Auth failed: ${error.message}`);
     }
   }
@@ -315,11 +370,15 @@ export class CognitoService {
     }
   }
 
-  /** Sends a password reset code to the user's email. */
+  /**
+   * Sends a password reset code to the user's email. An unknown email gets the same answer as
+   * a known one (no `destination`), so this public endpoint does not list registered emails.
+   */
   async forgotPassword(
     email: string,
     channel?: Channel,
   ): Promise<{ message: string; destination?: string }> {
+    const message = 'Si el email está registrado, te enviamos un código para restablecer la contraseña';
     try {
       const result = await this.client.send(
         new ForgotPasswordCommand({
@@ -328,12 +387,28 @@ export class CognitoService {
         }),
       );
 
-      return {
-        message:     'Código de recuperación enviado al email',
-        destination: result.CodeDeliveryDetails?.Destination,
-      };
+      return { message, destination: result.CodeDeliveryDetails?.Destination };
     } catch (error) {
-      throw new BadRequestException(`Forgot password failed: ${error.message}`);
+      if (awsErrorName(error) === 'UserNotFoundException') return { message };
+      const known = codeFlowError(error);
+      if (known) throw known;
+      if (error instanceof InvalidParameterException) {
+        // Cognito only resets passwords through a verified email.
+        throw new BusinessException(
+          BusinessErrorCode.EMAIL_NOT_VERIFIED,
+          'Tu email no está verificado: pedile al administrador de tu cuenta que lo revise',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      if (error instanceof NotAuthorizedException) {
+        // e.g. FORCE_CHANGE_PASSWORD: the user never set a password of their own.
+        throw new BusinessException(
+          BusinessErrorCode.PASSWORD_RESET_REQUIRED,
+          'Todavía no definiste tu contraseña: ingresá con la contraseña temporal que te dieron',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      throw new InternalServerErrorException(`Forgot password failed: ${error.message}`);
     }
   }
 
@@ -354,7 +429,76 @@ export class CognitoService {
         }),
       );
     } catch (error) {
+      const known = codeFlowError(error);
+      if (known) throw known;
+      if (error instanceof InvalidPasswordException) {
+        throw new BusinessException(
+          BusinessErrorCode.PASSWORD_POLICY_VIOLATION,
+          'La nueva contraseña no cumple los requisitos de seguridad',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
       throw new BadRequestException(`Confirm forgot password failed: ${error.message}`);
+    }
+  }
+
+  // ─── Email confirmation (users created with SignUp, status UNCONFIRMED) ─────
+  // Users created by the back (AdminCreateUser) are confirmed already; these flows serve the
+  // Cognito users that were registered with SignUp and never confirmed their email. Login
+  // answers USER_NOT_CONFIRMED for them.
+
+  /** Confirms the user's email with the code Cognito sent. */
+  async confirmSignUp(email: string, code: string, channel?: Channel): Promise<void> {
+    try {
+      await this.client.send(
+        new ConfirmSignUpCommand({
+          ClientId:         this.clientIdFor(channel),
+          Username:         email,
+          ConfirmationCode: code,
+        }),
+      );
+    } catch (error) {
+      const known = codeFlowError(error);
+      if (known) throw known;
+      if (error instanceof NotAuthorizedException) {
+        // "User cannot be confirmed. Current status is CONFIRMED"
+        throw new BusinessException(
+          BusinessErrorCode.USER_ALREADY_CONFIRMED,
+          'Tu email ya está confirmado: iniciá sesión',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      throw new InternalServerErrorException(`Confirm sign-up failed: ${error.message}`);
+    }
+  }
+
+  /** Sends the email confirmation code again. Unknown emails get the same answer. */
+  async resendConfirmationCode(
+    email: string,
+    channel?: Channel,
+  ): Promise<{ message: string; destination?: string }> {
+    const message = 'Si el email está registrado y sin confirmar, te enviamos un código nuevo';
+    try {
+      const result = await this.client.send(
+        new ResendConfirmationCodeCommand({
+          ClientId: this.clientIdFor(channel),
+          Username: email,
+        }),
+      );
+      return { message, destination: result.CodeDeliveryDetails?.Destination };
+    } catch (error) {
+      if (awsErrorName(error) === 'UserNotFoundException') return { message };
+      const known = codeFlowError(error);
+      if (known) throw known;
+      if (error instanceof InvalidParameterException) {
+        // "User is already confirmed."
+        throw new BusinessException(
+          BusinessErrorCode.USER_ALREADY_CONFIRMED,
+          'Tu email ya está confirmado: iniciá sesión',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      throw new InternalServerErrorException(`Resend confirmation code failed: ${error.message}`);
     }
   }
 

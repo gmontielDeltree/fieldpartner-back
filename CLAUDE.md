@@ -97,6 +97,35 @@ El `JwtAuthGuard` es global (APP_GUARD): todo endpoint exige token salvo `@Publi
    que llaman a Cognito).
 9. **Secretos** solo desde env; nunca loguear tokens, passwords ni respuestas de Cognito.
 
+### Auth (KAN-66)
+
+- `AuthService` es fachada; las reglas del login están en `auth/businessLogic/auth.business.ts`
+  y las queries en `auth.repository.ts`. Todas corren **después** de que Cognito aceptó la
+  contraseña (no revelan nada de la cuenta a quien no la sabe).
+- **No hay registro público**: `/auth/register` del legacy está deprecado. Cuentas y usuarios se
+  crean desde el backoffice o por el ADMIN de la cuenta (`POST /users`, AdminCreateUser →
+  contraseña temporal → `complete-new-password`). `/auth/confirm` y
+  `/auth/resend-verification-code` quedan para los usuarios de Cognito creados con SignUp que no
+  confirmaron el email: el login les responde 403 `USER_NOT_CONFIRMED`.
+- Login: cuenta `ACTIVE` y permitida en el canal; usuario no `INACTIVE`/`SUSPENDED`/`CANCELLED`.
+  En `fieldpartner_front` además: licencia `ACTIVE` y vigente (el `endDate` cuenta el día
+  entero) y lugares de la licencia (`activeUsersAllowed`). El primer login pasa el usuario de
+  `PENDING` a `ACTIVE` y ocupa un lugar, bajo `FOR UPDATE` de la licencia.
+- **Sesión única** en `fieldpartner_front` (`auth/session.ts`): el login guarda el `origin_jti`
+  del token en `User.activeSessionId`; un token de una sesión anterior recibe 401
+  `SESSION_REPLACED` en cada request (`JwtStrategy`) y al renovar (`/auth/refresh`). Con el app
+  client compartido (canal desconocido) aplica a todos menos `GENERAL_ADMIN`, que también usa el
+  backoffice. Sin `origin_jti` (revocación de tokens apagada en el pool) no se aplica y se avisa
+  en el log. El `logout` solo borra la sesión si es la suya.
+- Cada request autenticado hace una lectura de `users` por `cognitoId` (sesión, estado del
+  usuario y de la cuenta): un usuario o cuenta desactivados pierden el acceso en el request
+  siguiente (401 `USER_INACTIVE` / `ACCOUNT_INACTIVE`), no cuando vence el token.
+- Errores de Cognito con código propio (`USER_NOT_CONFIRMED`, `INVALID_CODE`, `CODE_EXPIRED`,
+  `TOO_MANY_ATTEMPTS`, `EMAIL_NOT_VERIFIED`…). `forgot-password` y `resend-verification-code`
+  contestan lo mismo para un email que no existe, y un código contra un email que no existe da
+  `INVALID_CODE`: son públicos y no deben listar emails.
+- `modules` (permisos de menú) todavía no sale en el login: depende de KAN-57.
+
 ## 3. Prisma
 
 - `schema.prisma` es la fuente de verdad. Cambio de schema → migración nueva en

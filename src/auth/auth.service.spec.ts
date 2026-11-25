@@ -3,108 +3,84 @@ import { BusinessException } from '../common/exceptions/business.exception';
 import { LoginRequestDto } from './dto/login.request.dto';
 
 /**
- * Unit tests for login. CognitoService is mocked, so no real auth call is made.
- * Covers the channel-access authorization added in the security pass.
+ * AuthService is the facade: Cognito is mocked (no AWS call) and the login rules live in
+ * AuthBusiness (see businessLogic/auth.business.spec.ts).
  */
-describe('AuthService.login', () => {
+describe('AuthService', () => {
   let service: AuthService;
   let cognito: any;
-  let prisma: any;
+  let business: any;
+  let repo: any;
 
   const tokens = { accessToken: 'access-tok', refreshToken: 'refresh-tok', expiresIn: 3600 };
-
-  const userWith = (category: string, status = 'ACTIVE', role: string | null = 'GENERAL_ADMIN') => ({
-    cognitoId: 'cog-1',
-    username: 'owner',
-    email: 'owner@test.com',
-    role,
-    language: 'es',
-    photoName: null,
-    currency: null,
-    licence: {
-      account: {
-        id: 'acc-1',
-        status,
-        category,
-        denomination: 'Acme',
-        countryCode: 'AR',
-        currency: 'USD',
-      },
-    },
-  });
-
-  const dto: LoginRequestDto = { email: 'Owner@Test.com', password: 'Secret123!' } as LoginRequestDto;
+  const dto = { email: 'Owner@Test.com', password: 'Secret123!' } as LoginRequestDto;
 
   beforeEach(() => {
     cognito = {
       initiateAuth: jest.fn().mockResolvedValue(tokens),
+      respondToNewPasswordChallenge: jest.fn().mockResolvedValue(tokens),
+      refreshAccessToken: jest.fn().mockResolvedValue(tokens),
+      globalSignOut: jest.fn(),
+      confirmSignUp: jest.fn(),
+      resendConfirmationCode: jest.fn().mockResolvedValue({ message: 'ok' }),
+      forgotPassword: jest.fn().mockResolvedValue({ message: 'ok' }),
     };
-    prisma = {
-      user: { findUnique: jest.fn() },
+    business = {
+      completeLogin: jest.fn().mockResolvedValue({ user: {}, auth: tokens }),
+      assertRenewable: jest.fn(),
     };
-    service = new AuthService(cognito, prisma);
+    repo = { clearActiveSession: jest.fn(), existsByEmail: jest.fn() };
+    service = new AuthService(cognito, business, repo);
   });
 
-  it('returns user profile + tokens for an allowed channel/category (backoffice + Cat A)', async () => {
-    prisma.user.findUnique.mockResolvedValue(userWith('A'));
-
-    const result: any = await service.login(dto, 'backoffice');
-
-    // The channel selects the Cognito app client the token is issued for.
-    expect(cognito.initiateAuth).toHaveBeenCalledWith('owner@test.com', 'Secret123!', 'backoffice');
-    expect(result.auth).toEqual(tokens);
-    expect(result.user).toEqual(
-      expect.objectContaining({ id: 'cog-1', email: 'owner@test.com', accountId: 'acc-1' }),
-    );
+  it('login: the channel picks the app client and the business builds the session', async () => {
+    await service.login(dto, 'fieldpartner_front');
+    expect(cognito.initiateAuth).toHaveBeenCalledWith('owner@test.com', 'Secret123!', 'fieldpartner_front');
+    expect(business.completeLogin).toHaveBeenCalledWith('owner@test.com', tokens, 'fieldpartner_front');
   });
 
-  it('returns the challenge descriptor without building a session when Cognito requires a new password', async () => {
+  it('login: returns the challenge without building a session when Cognito asks for a new password', async () => {
     cognito.initiateAuth.mockResolvedValueOnce({ challengeName: 'NEW_PASSWORD_REQUIRED', session: 'sess-1' });
-
-    const result: any = await service.login(dto, 'backoffice');
-
-    expect(result).toEqual({
+    await expect(service.login(dto, 'backoffice')).resolves.toEqual({
       challengeName: 'NEW_PASSWORD_REQUIRED',
       session: 'sess-1',
       email: 'owner@test.com',
     });
-    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    expect(business.completeLogin).not.toHaveBeenCalled();
   });
 
-  it.each(['ADMIN', 'USER', null])(
-    'rejects a %s user logging in through the backoffice (GENERAL_ADMIN only)',
-    async (role) => {
-      prisma.user.findUnique.mockResolvedValue(userWith('A', 'ACTIVE', role));
-      await expect(service.login(dto, 'backoffice')).rejects.toBeInstanceOf(BusinessException);
-    },
-  );
-
-  it('lets an account ADMIN log in through fieldpartner_front (no role restriction there)', async () => {
-    prisma.user.findUnique.mockResolvedValue(userWith('A', 'ACTIVE', 'ADMIN'));
-    const result: any = await service.login(dto, 'fieldpartner_front');
-    expect(result.user.role).toBe('ADMIN');
-  });
-
-  it('rejects a Cat A account logging in through the licence_front channel', async () => {
-    prisma.user.findUnique.mockResolvedValue(userWith('A'));
-
-    await expect(service.login(dto, 'licence_front')).rejects.toBeInstanceOf(BusinessException);
-  });
-
-  it('rejects an unknown/missing channel', async () => {
-    prisma.user.findUnique.mockResolvedValue(userWith('A'));
-
+  it('login: an unknown or missing channel is rejected before reaching Cognito', async () => {
     await expect(service.login(dto, 'bogus_channel')).rejects.toBeInstanceOf(BusinessException);
-    await expect(service.login(dto, undefined as unknown as string)).rejects.toBeInstanceOf(
-      BusinessException,
-    );
-    // Rejected before reaching Cognito: no token is issued for an unknown channel.
+    await expect(service.login(dto, undefined as unknown as string)).rejects.toBeInstanceOf(BusinessException);
     expect(cognito.initiateAuth).not.toHaveBeenCalled();
   });
 
-  it('rejects login when the account is not ACTIVE', async () => {
-    prisma.user.findUnique.mockResolvedValue(userWith('A', 'SUSPENDED'));
+  it('completeNewPassword goes through the same login rules', async () => {
+    await service.completeNewPassword({ email: 'A@B.com', session: 's', newPassword: 'Secret123!' }, 'fieldpartner_front');
+    expect(business.completeLogin).toHaveBeenCalledWith('a@b.com', tokens, 'fieldpartner_front');
+  });
 
-    await expect(service.login(dto, 'backoffice')).rejects.toBeInstanceOf(BusinessException);
+  it('refresh: the renewed token is checked before it is returned', async () => {
+    business.assertRenewable.mockRejectedValueOnce(new Error('SESSION_REPLACED'));
+    await expect(service.refresh('refresh-tok', 'fieldpartner_front')).rejects.toThrow('SESSION_REPLACED');
+    await expect(service.refresh('refresh-tok')).resolves.toBe(tokens);
+    expect(cognito.refreshAccessToken).toHaveBeenLastCalledWith('refresh-tok', undefined);
+  });
+
+  it('logout: signs out of Cognito and ends only its own session', async () => {
+    await service.logout({ cognitoId: 'cog-1', email: 'a@b.com', sessionId: 'sess-1' });
+    expect(cognito.globalSignOut).toHaveBeenCalledWith('a@b.com');
+    expect(repo.clearActiveSession).toHaveBeenCalledWith('cog-1', 'sess-1');
+
+    repo.clearActiveSession.mockClear();
+    await service.logout({ cognitoId: 'cog-1', email: 'a@b.com' });
+    expect(repo.clearActiveSession).not.toHaveBeenCalled();
+  });
+
+  it('confirm and resend go to Cognito with the email in lower case', async () => {
+    await service.confirmSignUp({ email: 'A@B.com', code: '123456' }, 'fieldpartner_front');
+    expect(cognito.confirmSignUp).toHaveBeenCalledWith('a@b.com', '123456', 'fieldpartner_front');
+    await service.resendVerificationCode('A@B.com');
+    expect(cognito.resendConfirmationCode).toHaveBeenCalledWith('a@b.com', undefined);
   });
 });
