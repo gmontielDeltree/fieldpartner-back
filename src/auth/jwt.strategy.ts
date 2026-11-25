@@ -5,6 +5,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { passportJwtSecret } from 'jwks-rsa';
 import { UserRole } from '@prisma/client';
 import { CognitoClients } from '../cognito/cognito-clients';
+import { AuthBusiness } from './businessLogic/auth.business';
 
 /** Claims of a Cognito access token that this API reads (already signature-verified). */
 interface CognitoAccessTokenPayload {
@@ -13,6 +14,8 @@ interface CognitoAccessTokenPayload {
   client_id: string;
   username?: string;
   email?: string;
+  /** Id of the login this token descends from (kept across refreshes). */
+  origin_jti?: string;
   'cognito:groups'?: string[];
   'custom:role'?: string;
   'custom:accountId'?: string;
@@ -40,6 +43,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     configService: ConfigService,
     private readonly clients: CognitoClients,
+    private readonly authBusiness: AuthBusiness,
   ) {
     const region     = configService.getOrThrow<string>('AWS_REGION');
     const userPoolId = configService.getOrThrow<string>('AWS_COGNITO_USER_POOL_ID');
@@ -70,15 +74,20 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Invalid access token');
     }
 
+    const channel = this.clients.channelOf(payload.client_id);
+    // Deactivated user/account or a session replaced by a newer login → 401 (KAN-66).
+    await this.authBusiness.assertCurrentSession(payload.sub, payload.origin_jti, channel);
+
     return {
       cognitoId: payload.sub,
+      sessionId: payload.origin_jti,
       // Users are created with Username = email, so `username` is the email.
       email:     payload.email ?? payload.username,
       // Optional authz claims — present once Cognito groups / the Pre-Token Lambda are wired.
       // The RolesGuard uses them when available and falls back to the DB otherwise.
       role:      resolveRoleClaim(payload),
       accountId: payload['custom:accountId'],
-      channel:   this.clients.channelOf(payload.client_id),
+      channel,
     };
   }
 }

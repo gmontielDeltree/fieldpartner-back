@@ -5,6 +5,15 @@ export enum BusinessErrorCode {
   INVALID_CREDENTIALS        = 'INVALID_CREDENTIALS',
   TOKEN_EXPIRED              = 'TOKEN_EXPIRED',
   TOKEN_INVALID              = 'TOKEN_INVALID',
+  /** Single session (fieldpartner_front): a newer login replaced this one. */
+  SESSION_REPLACED           = 'SESSION_REPLACED',
+  USER_NOT_CONFIRMED         = 'USER_NOT_CONFIRMED',
+  USER_ALREADY_CONFIRMED     = 'USER_ALREADY_CONFIRMED',
+  PASSWORD_RESET_REQUIRED    = 'PASSWORD_RESET_REQUIRED',
+  EMAIL_NOT_VERIFIED         = 'EMAIL_NOT_VERIFIED',
+  INVALID_CODE               = 'INVALID_CODE',
+  CODE_EXPIRED               = 'CODE_EXPIRED',
+  TOO_MANY_ATTEMPTS          = 'TOO_MANY_ATTEMPTS',
 
   // ── Account ───────────────────────────────────────────────────────────────
   ACCOUNT_INACTIVE           = 'ACCOUNT_INACTIVE',
@@ -14,6 +23,7 @@ export enum BusinessErrorCode {
 
   // ── User / Registration ───────────────────────────────────────────────────
   USER_NOT_FOUND             = 'USER_NOT_FOUND',
+  USER_INACTIVE              = 'USER_INACTIVE',
   EMAIL_ALREADY_REGISTERED   = 'EMAIL_ALREADY_REGISTERED',
   PASSWORD_POLICY_VIOLATION  = 'PASSWORD_POLICY_VIOLATION',
 

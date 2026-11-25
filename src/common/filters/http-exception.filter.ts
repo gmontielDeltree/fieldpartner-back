@@ -182,6 +182,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       404: BusinessErrorCode.RECORD_NOT_FOUND,
       409: BusinessErrorCode.DUPLICATE_ENTRY,
       422: BusinessErrorCode.VALIDATION_ERROR,
+      429: BusinessErrorCode.TOO_MANY_ATTEMPTS,
     };
     return map[status] ?? BusinessErrorCode.INTERNAL_ERROR;
   }

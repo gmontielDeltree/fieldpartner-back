@@ -1,26 +1,28 @@
 import { Injectable } from '@nestjs/common';
-import { HttpStatus } from '@nestjs/common';
-import { AccountCategory, AccountStatus, UserRole } from '@prisma/client';
-import { BusinessErrorCode, BusinessException } from '../common/exceptions/business.exception';
-import {
-  Channel,
-  CHANNEL_ALLOWED_CATEGORIES,
-  CHANNEL_ALLOWED_ROLES,
-} from '../common/enums/channel.enum';
 import { CognitoService, AuthTokens, isAuthChallenge } from '../cognito/cognito.service';
 import { parseChannel } from '../cognito/cognito-clients';
-import { PrismaService } from '../prisma/prisma.service';
+import { AuthBusiness } from './businessLogic/auth.business';
+import { AuthRepository } from './auth.repository';
 import { LoginRequestDto } from './dto/login.request.dto';
 import { LoginResponseDto, ChallengeResponseDto } from './dto/login.response.dto';
 import { NewPasswordRequestDto } from './dto/new-password.request.dto';
 import { ChangePasswordRequestDto } from './dto/change-password.request.dto';
 import { ConfirmForgotPasswordRequestDto } from './dto/confirm-forgot-password.request.dto';
+import { ConfirmSignUpRequestDto } from './dto/confirm-sign-up.request.dto';
+
+/** The authenticated principal JwtStrategy puts on `req.user`. */
+export interface AuthPrincipal {
+  cognitoId: string;
+  email: string;
+  sessionId?: string;
+}
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly cognito: CognitoService,
-    private readonly prisma: PrismaService,
+    private readonly authBusiness: AuthBusiness,
+    private readonly authRepository: AuthRepository,
   ) {}
 
   /**
@@ -29,37 +31,36 @@ export class AuthService {
    */
   async login(dto: LoginRequestDto, channelHeader: string): Promise<LoginResponseDto | ChallengeResponseDto> {
     const channel = parseChannel(channelHeader);
-    const result = await this.cognito.initiateAuth(dto.email.toLowerCase(), dto.password, channel);
+    const email = dto.email.toLowerCase();
+    const result = await this.cognito.initiateAuth(email, dto.password, channel);
 
     if (isAuthChallenge(result)) {
-      return {
-        challengeName: result.challengeName,
-        session:       result.session,
-        email:         dto.email.toLowerCase(),
-      };
+      return { challengeName: result.challengeName, session: result.session, email };
     }
-
-    return this.buildLoginResponse(dto.email.toLowerCase(), result, channel);
+    return this.authBusiness.completeLogin(email, result, channel);
   }
 
   async completeNewPassword(dto: NewPasswordRequestDto, channelHeader: string): Promise<LoginResponseDto> {
     const channel = parseChannel(channelHeader);
-    const tokens = await this.cognito.respondToNewPasswordChallenge(
-      dto.session,
-      dto.email.toLowerCase(),
-      dto.newPassword,
-      channel,
-    );
-    return this.buildLoginResponse(dto.email.toLowerCase(), tokens, channel);
+    const email = dto.email.toLowerCase();
+    const tokens = await this.cognito.respondToNewPasswordChallenge(dto.session, email, dto.newPassword, channel);
+    return this.authBusiness.completeLogin(email, tokens, channel);
   }
 
-  /** Without a channel header the shared default client is used (legacy clients). */
+  /**
+   * Without a channel header the shared default client is used (legacy clients). The renewed
+   * token is rejected if the user or account was deactivated or a newer login replaced it.
+   */
   async refresh(refreshToken: string, channelHeader?: string): Promise<AuthTokens> {
-    return this.cognito.refreshAccessToken(refreshToken, parseChannel(channelHeader, false));
+    const tokens = await this.cognito.refreshAccessToken(refreshToken, parseChannel(channelHeader, false));
+    await this.authBusiness.assertRenewable(tokens);
+    return tokens;
   }
 
-  async logout(email: string): Promise<void> {
-    await this.cognito.globalSignOut(email);
+  /** Signs the user out of Cognito and ends the single session if it is this one. */
+  async logout(principal: AuthPrincipal): Promise<void> {
+    await this.cognito.globalSignOut(principal.email);
+    if (principal.sessionId) await this.authRepository.clearActiveSession(principal.cognitoId, principal.sessionId);
   }
 
   async changePassword(accessToken: string, dto: ChangePasswordRequestDto): Promise<void> {
@@ -67,94 +68,31 @@ export class AuthService {
   }
 
   async forgotPassword(email: string, channelHeader?: string) {
-    return this.cognito.forgotPassword(email, parseChannel(channelHeader, false));
+    return this.cognito.forgotPassword(email.toLowerCase(), parseChannel(channelHeader, false));
   }
 
   async confirmForgotPassword(dto: ConfirmForgotPasswordRequestDto, channelHeader?: string): Promise<void> {
     await this.cognito.confirmForgotPassword(
-      dto.email,
+      dto.email.toLowerCase(),
       dto.code,
       dto.newPassword,
       parseChannel(channelHeader, false),
     );
   }
 
-  async checkEmailExists(email: string): Promise<boolean> {
-    const user = await this.prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
-      select: { id: true },
-    });
-    return !!user;
-  }
-
-  // ─── Private ──────────────────────────────────────────────────────────────
-
-  private async buildLoginResponse(
-    email: string,
-    tokens: AuthTokens,
-    channel: Channel,
-  ): Promise<LoginResponseDto> {
-    const user = await this.prisma.user.findUnique({
-      where:   { email },
-      include: { licence: { include: { account: true } } },
-    });
-
-    if (!user) {
-      throw new BusinessException(
-        BusinessErrorCode.USER_NOT_FOUND,
-        'Usuario no encontrado',
-        HttpStatus.UNAUTHORIZED,
-      );
-    }
-
-    const account = user.licence.account;
-
-    if (account.status !== AccountStatus.ACTIVE) {
-      throw new BusinessException(
-        BusinessErrorCode.ACCOUNT_INACTIVE,
-        'La cuenta está inactiva — contactá a tu representante comercial',
-        HttpStatus.FORBIDDEN,
-      );
-    }
-
-    this.validateChannelAccess(channel, account.category, user.role);
-
-    return {
-      user: {
-        id:          user.cognitoId,
-        username:    user.username,
-        email:       user.email,
-        role:        user.role ?? 'USER',
-        language:    user.language,
-        photoName:   user.photoName ?? undefined,
-        accountId:   account.id,
-        accountName: account.denomination,
-        countryCode: account.countryCode,
-        currency:    user.currency ?? account.currency,
-      },
-      auth: tokens,
-    };
-  }
-
   /**
-   * Ensures the account category and the user's role are allowed for the given channel.
-   * Unknown or missing channels were already rejected by parseChannel().
+   * Confirms the email of a user created with SignUp. It only confirms in Cognito: the user is
+   * activated (and takes a licence seat) on the first login, like any other user.
    */
-  private validateChannelAccess(
-    channel: Channel,
-    category: AccountCategory,
-    role: UserRole | null,
-  ): void {
-    const allowedRoles = CHANNEL_ALLOWED_ROLES[channel];
-    if (
-      !CHANNEL_ALLOWED_CATEGORIES[channel].includes(category) ||
-      (allowedRoles && (!role || !allowedRoles.includes(role)))
-    ) {
-      throw new BusinessException(
-        BusinessErrorCode.ACCOUNT_CHANNEL_NOT_ALLOWED,
-        'Tu cuenta no tiene acceso a esta aplicación',
-        HttpStatus.FORBIDDEN,
-      );
-    }
+  async confirmSignUp(dto: ConfirmSignUpRequestDto, channelHeader?: string): Promise<void> {
+    await this.cognito.confirmSignUp(dto.email.toLowerCase(), dto.code, parseChannel(channelHeader, false));
+  }
+
+  async resendVerificationCode(email: string, channelHeader?: string) {
+    return this.cognito.resendConfirmationCode(email.toLowerCase(), parseChannel(channelHeader, false));
+  }
+
+  async checkEmailExists(email: string): Promise<boolean> {
+    return this.authRepository.existsByEmail(email.toLowerCase());
   }
 }
