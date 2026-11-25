@@ -115,7 +115,8 @@ describe('UsersService (role-scoped access)', () => {
     it('deletes the Cognito user when the DB write fails (compensating action)', async () => {
       prisma.user.create.mockRejectedValueOnce(new Error('db down'));
       await expect(service.create(baseDto, accountAdmin)).rejects.toThrow('db down');
-      expect(cognito.deleteUser).toHaveBeenCalledWith('New@Test.com');
+      // the email is lower-cased before reaching Cognito, as in the login (KAN-66)
+      expect(cognito.deleteUser).toHaveBeenCalledWith('new@test.com');
     });
   });
 

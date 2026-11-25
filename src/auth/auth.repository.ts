@@ -16,6 +16,8 @@ export const LOGIN_USER_SELECT = {
   photoName:       true,
   currency:        true,
   licenceId:       true,
+  // Menus the user may open (KAN-57): the front builds the sidebar from them.
+  menuPermissions: { select: { menuModuleId: true }, orderBy: { menuModuleId: 'asc' } },
   licence: {
     select: {
       status:             true,

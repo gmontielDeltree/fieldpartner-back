@@ -390,6 +390,11 @@ INACTIVE INACTIVE
     }
   
 
+  "user_menu_permissions" {
+    DateTime createdAt 
+    }
+  
+
   "companies" {
     String id "🗝️"
     String fantasyName 
@@ -976,6 +981,8 @@ INACTIVE INACTIVE
     "users" |o--|| "UserState" : "enum:state"
     "users" |o--|o "UserRole" : "enum:role"
     "users" |o--|o "CurrencyCode" : "enum:currency"
+    "user_menu_permissions" }o--|| "users" : "user"
+    "user_menu_permissions" }o--|| "menu_modules" : "menuModule"
     "companies" |o--|| "accounts" : "account"
     "contracts_corporate" |o--|| "accounts" : "account"
     "contracts_corporate" }o--|o "campaigns" : "campaign"

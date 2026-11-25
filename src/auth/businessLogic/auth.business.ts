@@ -195,6 +195,7 @@ export class AuthBusiness {
         countryCode: account.countryCode,
         currency:    user.currency ?? account.currency,
       },
+      menuIds: user.menuPermissions.map((permission) => permission.menuModuleId),
       auth: tokens,
     };
   }

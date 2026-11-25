@@ -31,6 +31,7 @@ describe('AuthBusiness (KAN-66)', () => {
     photoName: null,
     currency: null,
     licenceId: 'lic-1',
+    menuPermissions: [{ menuModuleId: 3 }, { menuModuleId: 7 }],
     ...over,
     licence: {
       status: 'ACTIVE',
@@ -88,6 +89,8 @@ describe('AuthBusiness (KAN-66)', () => {
       const result = await business.completeLogin('owner@test.com', issued, Channel.FieldpartnerFront);
 
       expect(result.auth).toBe(issued);
+      // KAN-57: the menus the user may open
+      expect(result.menuIds).toEqual([3, 7]);
       expect(result.user).toEqual({
         id: 'cog-1',
         username: 'owner',

@@ -1,9 +1,10 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { Prisma, UserRole } from '@prisma/client';
 import { Caller } from '../auth/roles.guard';
-import { AccountUsersDto, UserDetailDto } from './dto/account-users.dto';
+import { AccountUsersDto, UserDetailDto, UserWithPermissionsDto } from './dto/account-users.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateOwnProfileDto } from './dto/update-own-profile.dto';
 import { UsersBusiness } from './businessLogic/users.business';
 import { UsersRepository } from './users.repository';
 
@@ -22,6 +23,25 @@ export class UsersService {
   /** Updates username / resets password, scoped to the caller (see `UsersBusiness.executeUpdate`). */
   update(id: string, dto: UpdateUserDto, caller: Caller): Promise<UserDetailDto> {
     return this.usersBusiness.executeUpdate(id, dto, caller);
+  }
+
+  /** A user with its menu permissions, scoped to the caller. */
+  findOne(id: string, caller: Caller): Promise<UserWithPermissionsDto> {
+    return this.usersBusiness.findOneWithPermissions(id, caller);
+  }
+
+  /** Replaces the menus a user may open, scoped to the caller. */
+  replacePermissions(id: string, menuIds: number[], caller: Caller): Promise<UserWithPermissionsDto> {
+    return this.usersBusiness.executeReplacePermissions(id, menuIds, caller);
+  }
+
+  /** The caller's own user and permissions. */
+  findMe(caller: Caller): Promise<UserWithPermissionsDto> {
+    return this.usersBusiness.findOwnProfile(caller);
+  }
+
+  updateMe(dto: UpdateOwnProfileDto, caller: Caller): Promise<UserWithPermissionsDto> {
+    return this.usersBusiness.executeUpdateOwnProfile(dto, caller);
   }
 
   /**
@@ -79,6 +99,8 @@ export class UsersService {
         username: user.username,
         role: user.role,
         state: user.state,
+        language: user.language,
+        photoName: user.photoName,
       });
     }
 
