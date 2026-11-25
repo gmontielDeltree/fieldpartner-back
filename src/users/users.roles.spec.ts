@@ -12,7 +12,7 @@ describe('UsersController roles', () => {
     expect(rolesOf(method)).toEqual([UserRole.GENERAL_ADMIN, UserRole.ADMIN, UserRole.USER]);
   });
 
-  it.each(['findAll', 'findOne', 'create', 'update', 'replacePermissions', 'findByEmail'] as const)(
+  it.each(['findAll', 'findOne', 'create', 'update', 'replacePermissions', 'findByEmail', 'deactivate', 'reactivate'] as const)(
     '%s stays for administrators only',
     (method) => {
       expect(rolesOf(method)).toEqual([UserRole.GENERAL_ADMIN, UserRole.ADMIN]);

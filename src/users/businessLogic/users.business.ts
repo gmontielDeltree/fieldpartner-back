@@ -146,6 +146,69 @@ export class UsersBusiness {
     return toUserWithPermissions(await this.usersRepository.updateProfile(cognitoId, dto));
   }
 
+  /**
+   * Deactivates a user (KAN-68): blocked in Cognito, state INACTIVE (frees its licence seat) and
+   * its sessions closed. The user, its permissions and its data stay; it can be reactivated.
+   * Scoped like the rest; nobody deactivates itself and an ADMIN cannot deactivate a GENERAL_ADMIN.
+   */
+  async executeDeactivate(id: string, caller: Caller): Promise<UserDetailDto> {
+    const target = await this.findScopedTarget(id, caller);
+    if (target.cognitoId === caller.cognitoId) {
+      throw new BusinessException(
+        BusinessErrorCode.CANNOT_DEACTIVATE_SELF,
+        'No podés desactivar tu propio usuario',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+    if (caller.role !== UserRole.GENERAL_ADMIN && target.role === UserRole.GENERAL_ADMIN) {
+      throw new ForbiddenException('No podés desactivar a un administrador general');
+    }
+
+    const wasInactive = target.state === UserState.INACTIVE;
+    // Cognito first: it is what stops new logins and renewals. Idempotent.
+    await this.cognito.adminDisableUser(target.email);
+    let user;
+    try {
+      user = await this.usersRepository.updateState(id, UserState.INACTIVE);
+    } catch (error) {
+      // DB failed: leave Cognito as it was so both stay consistent.
+      if (!wasInactive) await this.cognito.adminEnableUser(target.email).catch(() => undefined);
+      throw error;
+    }
+    // Closes its open sessions (best-effort); the back already rejects its tokens (USER_INACTIVE).
+    await this.cognito.globalSignOut(target.email);
+    return toUserDetail(user);
+  }
+
+  /**
+   * Reactivates an INACTIVE user (KAN-68): enabled in Cognito and back to PENDING, so its next
+   * login takes a licence seat under the usual seat check. ACTIVE or PENDING: nothing to do.
+   */
+  async executeReactivate(id: string, caller: Caller): Promise<UserDetailDto> {
+    const target = await this.findScopedTarget(id, caller);
+    if (target.state === UserState.ACTIVE || target.state === UserState.PENDING) {
+      const current = await this.usersRepository.findWithPermissions({ id });
+      if (!current) throw new NotFoundException(`Usuario ${id} no encontrado`);
+      return toUserDetail(current);
+    }
+    if (target.state !== UserState.INACTIVE) {
+      throw new BusinessException(
+        BusinessErrorCode.INVALID_USER_STATE,
+        'Solo se puede reactivar un usuario inactivo',
+        HttpStatus.CONFLICT,
+        { state: target.state },
+      );
+    }
+
+    await this.cognito.adminEnableUser(target.email);
+    try {
+      return toUserDetail(await this.usersRepository.updateState(id, UserState.PENDING));
+    } catch (error) {
+      await this.cognito.adminDisableUser(target.email).catch(() => undefined);
+      throw error;
+    }
+  }
+
   /** The target user if the caller may manage it; otherwise 404 (no disclosure). */
   private async findScopedTarget(id: string, caller: Caller) {
     const target = await this.usersRepository.findScopeTarget(id);

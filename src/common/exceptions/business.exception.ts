@@ -26,6 +26,10 @@ export enum BusinessErrorCode {
   // ── User / Registration ───────────────────────────────────────────────────
   USER_NOT_FOUND             = 'USER_NOT_FOUND',
   USER_INACTIVE              = 'USER_INACTIVE',
+  /** KAN-68: an administrator cannot deactivate itself. */
+  CANNOT_DEACTIVATE_SELF     = 'CANNOT_DEACTIVATE_SELF',
+  /** KAN-68: the user's state does not allow the change (e.g. reactivating a SUSPENDED user). */
+  INVALID_USER_STATE         = 'INVALID_USER_STATE',
   EMAIL_ALREADY_REGISTERED   = 'EMAIL_ALREADY_REGISTERED',
   PASSWORD_POLICY_VIOLATION  = 'PASSWORD_POLICY_VIOLATION',
 

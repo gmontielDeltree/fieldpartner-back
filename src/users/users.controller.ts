@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   NotFoundException,
   Param,
   ParseUUIDPipe,
@@ -89,5 +91,22 @@ export class UsersController {
     @Req() req: CallerRequest,
   ) {
     return this.usersService.replacePermissions(id, dto.menuIds, req.caller);
+  }
+
+  /**
+   * Deactivates the user (KAN-68): blocked in Cognito, state INACTIVE, sessions closed. Nobody
+   * deactivates itself. Idempotent.
+   */
+  @Post(':id/deactivate')
+  @HttpCode(HttpStatus.OK)
+  deactivate(@Param('id', ParseUUIDPipe) id: string, @Req() req: CallerRequest) {
+    return this.usersService.deactivate(id, req.caller);
+  }
+
+  /** Reactivates an INACTIVE user: enabled in Cognito and back to PENDING (KAN-68). */
+  @Post(':id/reactivate')
+  @HttpCode(HttpStatus.OK)
+  reactivate(@Param('id', ParseUUIDPipe) id: string, @Req() req: CallerRequest) {
+    return this.usersService.reactivate(id, req.caller);
   }
 }

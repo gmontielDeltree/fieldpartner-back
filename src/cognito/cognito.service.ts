@@ -11,6 +11,8 @@ import {
   AdminInitiateAuthCommand,
   AdminRespondToAuthChallengeCommand,
   AdminUserGlobalSignOutCommand,
+  AdminDisableUserCommand,
+  AdminEnableUserCommand,
   InitiateAuthCommand,
   ChangePasswordCommand,
   ForgotPasswordCommand,
@@ -562,6 +564,35 @@ export class CognitoService {
         UserAttributes: [{ Name: 'picture', Value: photoUrl }],
       }),
     );
+  }
+
+  /**
+   * Blocks the user in Cognito (KAN-68): it can no longer log in nor renew its tokens. A user
+   * that does not exist in Cognito is already unable to log in, so that is not an error.
+   */
+  async adminDisableUser(email: string): Promise<void> {
+    try {
+      await this.client.send(new AdminDisableUserCommand({ UserPoolId: this.userPoolId, Username: email }));
+    } catch (error) {
+      if (awsErrorName(error) === 'UserNotFoundException') return;
+      throw new InternalServerErrorException(`Admin disable user failed: ${awsErrorName(error)}`);
+    }
+  }
+
+  /** Lets a disabled user log in again (KAN-68). */
+  async adminEnableUser(email: string): Promise<void> {
+    try {
+      await this.client.send(new AdminEnableUserCommand({ UserPoolId: this.userPoolId, Username: email }));
+    } catch (error) {
+      if (awsErrorName(error) === 'UserNotFoundException') {
+        throw new BusinessException(
+          BusinessErrorCode.USER_NOT_FOUND,
+          'El usuario no existe en el sistema de autenticación: no se puede reactivar',
+          HttpStatus.CONFLICT,
+        );
+      }
+      throw new InternalServerErrorException(`Admin enable user failed: ${awsErrorName(error)}`);
+    }
   }
 
   async deleteUser(email: string): Promise<void> {
