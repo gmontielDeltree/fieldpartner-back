@@ -109,6 +109,28 @@ describe('CognitoService error mapping', () => {
     });
   });
 
+  describe('complete-new-password (NEW_PASSWORD_REQUIRED)', () => {
+    it.each([
+      ['InvalidPasswordException', 'PASSWORD_POLICY_VIOLATION', 400],
+      // the challenge session lasts a few minutes and is single-use
+      ['NotAuthorizedException', 'CHALLENGE_EXPIRED', 400],
+      ['CodeMismatchException', 'CHALLENGE_EXPIRED', 400],
+      ['ExpiredCodeException', 'CHALLENGE_EXPIRED', 400],
+      ['TooManyRequestsException', 'TOO_MANY_ATTEMPTS', 429],
+    ])('%s → %s', async (name, code, status) => {
+      send.mockRejectedValue(awsError(name));
+      expect(await codeOf(service.respondToNewPasswordChallenge('s', 'a@b.com', 'Secret123!'))).toEqual({ code, status });
+    });
+
+    it('an unknown AWS error is a 500 without the AWS message', async () => {
+      send.mockRejectedValue(Object.assign(new Error('internal details'), { name: 'InternalErrorException' }));
+      await expect(service.respondToNewPasswordChallenge('s', 'a@b.com', 'Secret123!')).rejects.toMatchObject({
+        status: 500,
+        message: expect.not.stringContaining('internal details'),
+      });
+    });
+  });
+
   it('confirm-forgot-password maps a wrong or expired code', async () => {
     send.mockRejectedValueOnce(awsError('CodeMismatchException'));
     expect((await codeOf(service.confirmForgotPassword('a@b.com', '1', 'Secret123!'))).code).toBe('INVALID_CODE');
