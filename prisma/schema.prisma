@@ -372,6 +372,8 @@ model MenuModule {
   parent   MenuModule?   @relation("MenuModuleChildren", fields: [parentId], references: [id], onDelete: Restrict)
   children MenuModule[]  @relation("MenuModuleChildren")
 
+  userPermissions UserMenuPermission[]
+
   @@index([moduleId])
   @@index([systemId])
   @@index([parentId])
@@ -482,7 +484,24 @@ model User {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
+  menuPermissions UserMenuPermission[]
+
   @@map("users")
+}
+
+// Menus a user may open (CouchDB: modules-users). The front replaces the whole set when
+// editing it. The account's first ADMIN gets every menu (KAN-57).
+model UserMenuPermission {
+  userId       String
+  menuModuleId Int
+  createdAt    DateTime @default(now())
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  menuModule MenuModule @relation(fields: [menuModuleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, menuModuleId])
+  @@index([menuModuleId])
+  @@map("user_menu_permissions")
 }
 
 // ─── Cat A only ─────────────────────────────────────────────────────────────

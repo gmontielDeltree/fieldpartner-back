@@ -19,6 +19,8 @@ export class LoginUserDto {
 
 export class LoginResponseDto {
   user: LoginUserDto;
+  /** Menus (menu_modules ids) the user may open (KAN-57). */
+  menuIds: number[];
   auth: AuthTokens;
 }
 

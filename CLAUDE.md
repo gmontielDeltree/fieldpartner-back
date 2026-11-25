@@ -126,7 +126,14 @@ El `JwtAuthGuard` es global (APP_GUARD): todo endpoint exige token salvo `@Publi
   `INVALID_CODE`: son públicos y no deben listar emails. `complete-new-password` responde
   `PASSWORD_POLICY_VIOLATION` o `CHALLENGE_EXPIRED` (la sesión del desafío dura unos minutos y es
   de un solo uso: el front vuelve al login).
-- `modules` (permisos de menú) todavía no sale en el login: depende de KAN-57.
+- **Permisos de menú (KAN-57):** tabla `user_menu_permissions` (usuario × `menu_modules.id`,
+  cascade en las dos FK). El login devuelve `menuIds`. El primer ADMIN de una cuenta recibe todos
+  los menús al crearla; después el ADMIN asigna menús a los usuarios que crea
+  (`POST /users` con `menuIds`) y los reemplaza enteros con `PUT /users/:id/permissions`.
+  `GET`/`PATCH /users/me` son para cualquier rol (perfil propio y menú al recargar); el resto de
+  `/users` es solo para GENERAL_ADMIN y ADMIN, con scoping por cuenta. Un id de menú inexistente
+  da 400 `INVALID_REFERENCE` con `details.menuIds`. No hay importador de `modules-users`: Postgres
+  arranca de cero.
 
 ## 3. Prisma
 

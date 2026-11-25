@@ -74,6 +74,13 @@ export class AccountBusiness {
 
     try {
       return await this.prisma.$transaction(async (tx) => {
+        // The account's first ADMIN may open every menu (as in the legacy); it then assigns
+        // menus to the users it creates (KAN-57).
+        const allMenus = await tx.menuModule.findMany({ select: { id: true } });
+        const adminMenuPermissions = {
+          createMany: { data: allMenus.map((menu) => ({ menuModuleId: menu.id })) },
+        };
+
         const account = await tx.account.create({
           data: {
             category: dto.category,
@@ -117,6 +124,7 @@ export class AccountBusiness {
               currency:   country.currency as CurrencyCode,
               photoName:  dto.user.photoUrl ?? '',
               state:      UserState.PENDING,
+              menuPermissions: adminMenuPermissions,
             },
           });
         }
@@ -184,6 +192,7 @@ export class AccountBusiness {
               currency: country.currency as CurrencyCode,
               photoName: dto.user.photoUrl ?? '',
               state: UserState.PENDING,
+              menuPermissions: adminMenuPermissions,
             },
           });
         }

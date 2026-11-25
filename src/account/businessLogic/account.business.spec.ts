@@ -38,6 +38,7 @@ describe('AccountBusiness.executeCreate', () => {
 
   beforeEach(() => {
     tx = {
+      menuModule: { findMany: jest.fn().mockResolvedValue([{ id: 1 }, { id: 151 }]) },
       account: {
         create: jest.fn().mockResolvedValue({ id: 'acc-1' }),
         // Shape matches ACCOUNT_DETAIL_SELECT so toAccountDetail() can map the result.
@@ -130,6 +131,15 @@ describe('AccountBusiness.executeCreate', () => {
     const userData = tx.user.create.mock.calls[0][0].data;
     expect(userData.role).toBe(UserRole.ADMIN);
     expect(userData.cognitoId).toBe('cog-123');
+  });
+
+  it('KAN-57: the account ADMIN may open every menu, written in the same transaction', async () => {
+    await business.executeCreate(dtoCatB());
+
+    expect(tx.menuModule.findMany).toHaveBeenCalledWith({ select: { id: true } });
+    expect(tx.user.create.mock.calls[0][0].data.menuPermissions).toEqual({
+      createMany: { data: [{ menuModuleId: 1 }, { menuModuleId: 151 }] },
+    });
   });
 
   it('deletes the Cognito user (compensating action) when the DB transaction fails', async () => {
