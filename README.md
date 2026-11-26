@@ -37,6 +37,9 @@ npx prisma generate
 # Seed base data
 psql -U postgres -d fieldpartner -f prisma/seed.sql
 
+# Optional: test data ("fruta") for one account (set the account id at the top first)
+psql -U postgres -d fieldpartner -v ON_ERROR_STOP=1 -f prisma/test-data.sql
+
 # Start dev server (port 4001)
 npm run start:dev
 ```
