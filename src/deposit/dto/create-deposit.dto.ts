@@ -90,6 +90,12 @@ export class CreateDepositDto {
   @IsString()
   taxId?: string;
 
+  /** Silo bag identifier (when hasSiloBag). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  siloBagId?: string;
+
   @IsOptional()
   @IsString()
   status?: string;
