@@ -41,10 +41,10 @@ export const planLocationSync = (current: CurrentLocation[], wanted: DepositLoca
 
   return {
     removeIds: current.filter((location) => !wantedKeys.has(key(location.name))).map((location) => location.id),
-    update: target
-      .map((location) => ({ existing: byName.get(key(location.name)), number: location.number }))
-      .filter(({ existing, number }) => existing && existing.number !== number)
-      .map(({ existing, number }) => ({ id: existing!.id, number })),
+    update: target.flatMap((location) => {
+      const existing = byName.get(key(location.name));
+      return existing && existing.number !== location.number ? [{ id: existing.id, number: location.number }] : [];
+    }),
     create: target.filter((location) => !byName.has(key(location.name))),
   };
 };
