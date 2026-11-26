@@ -20,6 +20,7 @@ import { LotLayoutModule } from './lot-layout/lot-layout.module';
 import { LotModule } from './lot/lot.module';
 import { CampaignModule } from './campaign/campaign.module';
 import { InputModule } from './input/input.module';
+import { NumeratorModule } from './numerator/numerator.module';
 import { LicenceTypeModule } from './licence-type/licence-type.module';
 import { SystemModule } from './system/system.module';
 import { FeatureModuleModule } from './feature-module/feature-module.module';
@@ -52,6 +53,7 @@ import { UsersModule } from './users/users.module';
     LotModule,
     CampaignModule,
     InputModule,
+    NumeratorModule,
     LicenceTypeModule,
     SystemModule,
     FeatureModuleModule,
