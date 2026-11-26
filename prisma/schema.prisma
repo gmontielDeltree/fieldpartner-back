@@ -199,6 +199,21 @@ model Category {
   @@map("categories")
 }
 
+/// Categories of third parties (contractor, supplier, agronomist…), used by the account's
+/// business partners and by transport documents. Not to be confused with Category, which
+/// classifies inputs. `code` is the stable key the apps rely on (CouchDB `idCategory`).
+model EntityCategory {
+  id            String   @id @default(uuid())
+  code          String   @unique
+  descriptionES String
+  descriptionPT String
+  descriptionEN String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("entity_categories")
+}
+
 model Crop {
   id            String   @id @default(uuid())
   descriptionES String
