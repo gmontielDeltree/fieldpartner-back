@@ -567,7 +567,7 @@ INACTIVE INACTIVE
     String id "🗝️"
     String name 
     String description "❓"
-    String zafra "❓"
+    String zafras 
     DateTime startDate "❓"
     DateTime endDate "❓"
     CampaignState state 

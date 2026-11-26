@@ -11,7 +11,7 @@ export const CAMPAIGN_SELECT = {
   zoneId: true,
   name: true,
   description: true,
-  zafra: true,
+  zafras: true,
   startDate: true,
   endDate: true,
   state: true,

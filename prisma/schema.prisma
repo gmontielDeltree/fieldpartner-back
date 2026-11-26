@@ -816,7 +816,7 @@ model Campaign {
   zone        Zone?         @relation(fields: [zoneId], references: [id])
   name        String
   description String?
-  zafra       String?
+  zafras      String[]      @default([])
   startDate   DateTime?
   endDate     DateTime?
   state       CampaignState @default(ACTIVE)

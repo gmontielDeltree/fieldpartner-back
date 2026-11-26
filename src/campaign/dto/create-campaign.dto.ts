@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsEnum, IsDateString } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsString, IsNotEmpty, IsOptional, IsEnum, IsDateString } from 'class-validator';
 import { CampaignState } from '@prisma/client';
 
 /**
@@ -20,9 +20,13 @@ export class CreateCampaignDto {
   @IsString()
   description?: string;
 
+  /** Zafras of the campaign (e.g. `gruesa_verano`, `fina_invierno`, or a custom label). */
   @IsOptional()
-  @IsString()
-  zafra?: string;
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @IsNotEmpty({ each: true })
+  zafras?: string[];
 
   @IsOptional()
   @IsDateString()
