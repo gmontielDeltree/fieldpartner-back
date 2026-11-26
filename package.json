@@ -20,7 +20,6 @@
     "prisma:generate": "prisma generate",
     "import:couch-menus": "ts-node --transpile-only scripts/import-couchdb-menus.ts",
     "import:couch-fields": "ts-node --transpile-only scripts/import-couchdb-fields.ts",
-    "import:couch-numerators": "ts-node --transpile-only scripts/import-couchdb-numerators.ts",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "prisma:deploy": "prisma migrate deploy"
