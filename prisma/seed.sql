@@ -67,7 +67,22 @@ VALUES
   ('SEED',           'Semilla',            'Semente',            'Seed',               false, true,  NOW(), NOW()),
   ('ADJUVANT',       'Adyuvante',          'Adjuvante',          'Adjuvant',           false, false, NOW(), NOW()),
   ('SEED_TREATMENT', 'Curasemillas',       'Tratamento de Semente','Seed Treatment',   true,  false, NOW(), NOW()),
-  ('INOCULANT',      'Inoculante',         'Inoculante',         'Inoculant',          false, false, NOW(), NOW())
+  ('INOCULANT',      'Inoculante',         'Inoculante',         'Inoculant',          false, false, NOW(), NOW()),
+  -- Tipos que el front tenía en CouchDB y el catálogo no (KAN-70).
+  ('SPARE_PARTS',    'Repuestos',          'Peças de reposição', 'Spare parts',        false, false, NOW(), NOW()),
+  ('MATERIALS',      'Materiales',         'Materiais',          'Materials',          false, false, NOW(), NOW()),
+  ('FUEL',           'Combustible',        'Combustível',        'Fuel',               false, false, NOW(), NOW()),
+  ('MISCELLANEOUS',  'Varios',             'Diversos',           'Miscellaneous',      false, false, NOW(), NOW())
+ON CONFLICT (code) DO NOTHING;
+
+-- -------------------------
+-- ENTITY CATEGORIES (categorías de terceros, separadas de las de insumos)
+-- El front busca por code: CONTRACTOR (contratistas) y AGRONOMIST (ingenieros agrónomos).
+-- -------------------------
+INSERT INTO entity_categories (id, code, "descriptionES", "descriptionPT", "descriptionEN", "createdAt", "updatedAt")
+VALUES
+  ('ecat-contractor', 'CONTRACTOR', 'Contratista',        'Prestador de serviços', 'Contractor', NOW(), NOW()),
+  ('ecat-agronomist', 'AGRONOMIST', 'Ingeniero agrónomo', 'Engenheiro agrônomo',   'Agronomist', NOW(), NOW())
 ON CONFLICT (code) DO NOTHING;
 
 -- -------------------------
@@ -106,6 +121,7 @@ ON CONFLICT (id) DO NOTHING;
  UNION ALL SELECT 'licence_types', COUNT(*) FROM licence_types
  UNION ALL SELECT 'categories',    COUNT(*) FROM categories
  UNION ALL SELECT 'input_types',   COUNT(*) FROM input_types
+ UNION ALL SELECT 'entity_categories', COUNT(*) FROM entity_categories
  UNION ALL SELECT 'crops',         COUNT(*) FROM crops
  UNION ALL SELECT 'movement_types',COUNT(*) FROM movement_types;
 

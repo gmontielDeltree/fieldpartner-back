@@ -162,6 +162,9 @@ El `JwtAuthGuard` es global (APP_GUARD): todo endpoint exige token salvo `@Publi
   `npm run import:couch-fields` trae campos y lotes (KAN-65), mismas reglas; ver § PostGIS.
 - Si un cambio afecta datos de referencia, actualizar `prisma/seed.sql` (idempotente,
   `ON CONFLICT`).
+- Datos de prueba ("fruta") para probar casuísticas del front: `prisma/test-data.sql`, colgados
+  de la cuenta que se ponga al principio del script, con id `fruta-...` (idempotente, trae el
+  bloque para borrarlos). Nunca en producción ni en `seed.sql`; los casos nuevos se agregan ahí.
 
 ### PostGIS (campos y lotes, KAN-65)
 
