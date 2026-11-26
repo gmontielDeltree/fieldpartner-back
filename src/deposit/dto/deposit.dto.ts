@@ -24,7 +24,7 @@ export const DEPOSIT_SELECT = {
   status: true,
   createdAt: true,
   updatedAt: true,
-  locations: { select: { id: true, number: true, name: true } },
+  locations: { select: { id: true, number: true, name: true }, orderBy: { name: 'asc' } },
 } as const;
 
 export type DepositDto = Prisma.DepositGetPayload<{ select: typeof DEPOSIT_SELECT }>;
