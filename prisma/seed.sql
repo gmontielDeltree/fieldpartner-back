@@ -102,16 +102,26 @@ ON CONFLICT (id) DO NOTHING;
 
 -- -------------------------
 -- MOVEMENT TYPES (catálogo global)
+-- "name" es el que compara el front (enum TypeMovement): no cambiarlo.
+-- manual = se ofrece en la pantalla de movimientos de stock; los otros los genera el front.
+-- stockSum: ADD suma, SUBTRACT descuenta, BOTH el usuario elige. La transferencia descuenta
+-- del origen (el front suma en el destino).
+-- Un tipo que ya exista con el mismo nombre (cargado desde el BO) no se duplica.
 -- -------------------------
-INSERT INTO movement_types (id, name, description, "createdAt", "updatedAt")
-VALUES
-  ('mvt-buy',      'Compra',          'Ingreso por compra',            NOW(), NOW()),
-  ('mvt-sale',     'Venta',           'Egreso por venta',              NOW(), NOW()),
-  ('mvt-transfer', 'Transferencia',   'Movimiento entre depósitos',    NOW(), NOW()),
-  ('mvt-adjust',   'Ajuste',          'Ajuste de inventario',          NOW(), NOW()),
-  ('mvt-loss',     'Pérdida',         'Pérdida / merma',               NOW(), NOW()),
-  ('mvt-return',   'Devolución',      'Devolución a proveedor',        NOW(), NOW()),
-  ('mvt-app',      'Aplicación',      'Consumo por aplicación en lote',NOW(), NOW())
+INSERT INTO movement_types (id, name, "conceptES", "conceptPT", "conceptEN", description, manual, "stockSum", "createdAt", "updatedAt")
+SELECT v.id, v.name, v.concept_es, v.concept_pt, v.concept_en, v.description, v.manual, v.stock_sum::"StockSumType", NOW(), NOW()
+FROM (VALUES
+  ('mvt-adjust',    'Ajustes',                       'Ajustes',                        'Ajustes',                      'Adjustments',            'Ajuste de inventario',                true,  'BOTH'),
+  ('mvt-buy',       'Compra',                        'Compra',                         'Compra',                       'Purchase',               'Ingreso por compra',                  true,  'ADD'),
+  ('mvt-sale',      'Ventas Varias',                 'Ventas varias',                  'Vendas diversas',              'Miscellaneous sales',    'Egreso por venta',                    true,  'SUBTRACT'),
+  ('mvt-transfer',  'Transferencia entre depositos', 'Transferencia entre depósitos',  'Transferência entre depósitos','Transfer between deposits','Movimiento entre depósitos',       true,  'SUBTRACT'),
+  ('mvt-loan',      'Prestamos',                     'Préstamos',                      'Empréstimos',                  'Loans',                  'Préstamo de o a terceros',            true,  'BOTH'),
+  ('mvt-transform', 'Transformacion',                'Transformación',                 'Transformação',                'Transformation',         'Transformación de insumos',           false, 'BOTH'),
+  ('mvt-exit',      'Salida de Campo',               'Salida de campo',                'Saída de campo',               'Field exit',             'Cosecha que sale del campo',          false, 'ADD'),
+  ('mvt-withdraw',  'Orden de Retiro',               'Orden de retiro',                'Ordem de retirada',            'Withdrawal order',       'Retiro de insumos del depósito',      false, 'SUBTRACT'),
+  ('mvt-labor',     'Labores',                       'Labores',                        'Trabalhos',                    'Field work',             'Consumo por labores en el lote',      false, 'SUBTRACT')
+) AS v(id, name, concept_es, concept_pt, concept_en, description, manual, stock_sum)
+WHERE NOT EXISTS (SELECT 1 FROM movement_types m WHERE m.name = v.name)
 ON CONFLICT (id) DO NOTHING;
 
 -- =============================================================
