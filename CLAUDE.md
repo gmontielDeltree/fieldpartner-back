@@ -154,6 +154,9 @@ El `JwtAuthGuard` es global (APP_GUARD): todo endpoint exige token salvo `@Publi
   **Única excepción:** `MenuModule.id` es un `Int` elegido por el admin (sin autoincrement)
   porque los permisos de usuario y el sidebar del front lo referencian; es inmutable (no está
   en el DTO de update).
+- Claves de negocio que las apps usan para buscar un registro de catálogo son inmutables:
+  quedan fuera del DTO de update (`OmitType`), como `EntityCategory.code` (el front busca
+  `CONTRACTOR` / `AGRONOMIST`). Un PATCH que las mande da 400.
 - Nombres de modelo: no usar nombres que choquen con NestJS (`Module` → `FeatureModule`).
 - Importación desde CouchDB: `scripts/` (fuera de la estructura de módulos, usan Prisma directo;
   `tsconfig.build.json` los excluye para que `nest build` deje `dist/main.js`, y corren con ts-node).
