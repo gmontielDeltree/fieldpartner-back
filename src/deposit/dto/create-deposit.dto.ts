@@ -1,4 +1,28 @@
-import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsNumber } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsBoolean,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  MaxLength,
+  ValidateNested,
+} from 'class-validator';
+
+/** A named place inside the deposit (shed, silo 3…). */
+export class DepositLocationInputDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  name: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  number?: string;
+}
 
 /** The account comes from the caller (or `?accountId=` for a GENERAL_ADMIN), never the body. */
 export class CreateDepositDto {
@@ -69,4 +93,15 @@ export class CreateDepositDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  /**
+   * Full list of locations. On update it replaces the current one, matched by name
+   * (case-insensitive): existing names keep their id, missing ones are removed.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => DepositLocationInputDto)
+  locations?: DepositLocationInputDto[];
 }
