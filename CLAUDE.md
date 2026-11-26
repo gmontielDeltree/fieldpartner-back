@@ -54,9 +54,12 @@ El `JwtAuthGuard` es global (APP_GUARD): todo endpoint exige token salvo `@Publi
 
 1. **Roles explícitos.** `@UseGuards(RolesGuard)` en el controller y `@Roles(...)` a nivel clase
    y/o método. Ningún endpoint de escritura queda sin `@Roles`.
-   - **Catálogos globales** (country, category, crop, movement-type, input-type, licence-type,
+   - **Catálogos globales** (country, category, entity-category, crop, movement-type, input-type, licence-type,
      type-device, system, feature-module, menu-module y los futuros): lectura `GET` para usuarios autenticados; `POST`/`PATCH`/`DELETE`
      solo `@Roles(UserRole.GENERAL_ADMIN)`.
+     No confundir `category` (categorías de **insumos**, `Input.categoryId`) con
+     `entity-category` (categorías de **terceros**: contratista, proveedor…; las apps la
+     buscan por `code`, el `idCategory` de CouchDB) (KAN-70).
    - **Datos de una cuenta** (accounts, users, fields, deposits…): `GENERAL_ADMIN` ve todo;
      `ADMIN` y los usuarios comunes solo lo suyo.
 2. **Ownership / IDOR.** Todo `:id` que pertenezca a una cuenta se valida contra

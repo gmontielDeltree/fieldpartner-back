@@ -10,6 +10,7 @@ import { CountryModule } from './country/country.module';
 import { CropModule } from './crop/crop.module';
 import { InputTypeModule } from './input-type/input-type.module';
 import { CategoryModule } from './category/category.module';
+import { EntityCategoryModule } from './entity-category/entity-category.module';
 import { MovementTypeModule } from './movement-type/movement-type.module';
 import { AccountModule } from './account/account.module';
 import { ZoneModule } from './zone/zone.module';
@@ -41,6 +42,7 @@ import { UsersModule } from './users/users.module';
     CropModule,
     InputTypeModule,
     CategoryModule,
+    EntityCategoryModule,
     MovementTypeModule,
     AccountModule,
     ZoneModule,

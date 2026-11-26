@@ -214,6 +214,17 @@ INACTIVE INACTIVE
     }
   
 
+  "entity_categories" {
+    String id "🗝️"
+    String code 
+    String descriptionES 
+    String descriptionPT 
+    String descriptionEN 
+    DateTime createdAt 
+    DateTime updatedAt 
+    }
+  
+
   "crops" {
     String id "🗝️"
     String descriptionES 

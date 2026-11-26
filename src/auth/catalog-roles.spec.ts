@@ -7,6 +7,7 @@ import { AccountController } from '../account/account.controller';
 import { RolesGuard } from './roles.guard';
 import { CountryController } from '../country/country.controller';
 import { CategoryController } from '../category/category.controller';
+import { EntityCategoryController } from '../entity-category/entity-category.controller';
 import { CropController } from '../crop/crop.controller';
 import { MovementTypeController } from '../movement-type/movement-type.controller';
 import { InputTypeController } from '../input-type/input-type.controller';
@@ -30,6 +31,7 @@ jest.mock('@nestjs/mapped-types', () => ({
 const CATALOG_CONTROLLERS = [
   CountryController,
   CategoryController,
+  EntityCategoryController,
   CropController,
   MovementTypeController,
   InputTypeController,
