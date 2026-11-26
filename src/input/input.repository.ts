@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateInputDto } from './dto/create-input.dto';
 import { UpdateInputDto } from './dto/update-input.dto';
 import { INPUT_SELECT, InputDto } from './dto/input.dto';
+import { normalizeCropApplications, planCropApplicationSync } from './businessLogic/input-crop-applications';
 
 /**
  * Inputs visible to an account: its own plus the platform ones (accountId null).
@@ -18,7 +19,15 @@ export class InputRepository {
 
   /** `accountId` null = platform input. */
   create(accountId: string | null, dto: CreateInputDto): Promise<InputDto> {
-    return this.prisma.input.create({ data: { ...dto, accountId }, select: INPUT_SELECT });
+    const { cropApplications, ...data } = dto;
+    return this.prisma.input.create({
+      data: {
+        ...data,
+        accountId,
+        ...(cropApplications && { cropApplications: { create: normalizeCropApplications(cropApplications) } }),
+      },
+      select: INPUT_SELECT,
+    });
   }
 
   /** One account's own inputs, or the platform catalog when `accountId` is null. */
@@ -54,8 +63,26 @@ export class InputRepository {
     return (await this.prisma.input.count({ where })) > 0;
   }
 
+  /** `cropApplications`, when sent, replaces the list (see planCropApplicationSync), in one transaction. */
   update(id: string, dto: UpdateInputDto): Promise<InputDto> {
-    return this.prisma.input.update({ where: { id }, data: dto, select: INPUT_SELECT });
+    const { cropApplications, ...data } = dto;
+    if (!cropApplications) return this.prisma.input.update({ where: { id }, data, select: INPUT_SELECT });
+
+    return this.prisma.$transaction(async (tx) => {
+      const current = await tx.inputCropApplication.findMany({
+        where: { inputId: id },
+        select: { id: true, cropId: true, minDose: true, maxDose: true, suggestedDose: true },
+      });
+      const plan = planCropApplicationSync(current, cropApplications);
+      if (plan.removeIds.length) await tx.inputCropApplication.deleteMany({ where: { id: { in: plan.removeIds } } });
+      for (const { id: applicationId, ...doses } of plan.update) {
+        await tx.inputCropApplication.update({ where: { id: applicationId }, data: doses });
+      }
+      if (plan.create.length) {
+        await tx.inputCropApplication.createMany({ data: plan.create.map((application) => ({ ...application, inputId: id })) });
+      }
+      return tx.input.update({ where: { id }, data, select: INPUT_SELECT });
+    });
   }
 
   remove(id: string): Promise<InputDto> {

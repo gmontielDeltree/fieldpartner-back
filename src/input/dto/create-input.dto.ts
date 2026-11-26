@@ -1,8 +1,32 @@
+import { Type } from 'class-transformer';
 import {
   IsString, IsNotEmpty, IsOptional, IsBoolean,
   IsNumber, IsArray, IsEnum, Min, IsInt, IsPositive,
+  ArrayMaxSize, MaxLength, ValidateNested,
 } from 'class-validator';
 import { Labor } from '@prisma/client';
+
+/** A crop the input applies to, with optional doses for that crop. */
+export class InputCropApplicationInputDto {
+  @IsString()
+  @IsNotEmpty()
+  cropId: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  minDose?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  maxDose?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  suggestedDose?: number;
+}
 
 /**
  * The owner account comes from the caller, never the body: an account user creates inputs in
@@ -117,4 +141,27 @@ export class CreateInputDto {
   @IsOptional()
   @IsString()
   cropId?: string;
+
+  /** Technical sheet: stored file name. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  documentFile?: string;
+
+  /** Technical sheet: original file name shown to the user. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  documentFileName?: string;
+
+  /**
+   * Full list of crops the input applies to. On update it replaces the current one, matched
+   * by cropId: existing crops keep their id (doses updated), missing ones are removed.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => InputCropApplicationInputDto)
+  cropApplications?: InputCropApplicationInputDto[];
 }

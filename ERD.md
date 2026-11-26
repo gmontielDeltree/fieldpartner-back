@@ -469,6 +469,8 @@ INACTIVE INACTIVE
     String productUrl "❓"
     Float eiqValue "❓"
     String senasaId "❓"
+    String documentFile "❓"
+    String documentFileName "❓"
     DateTime createdAt 
     DateTime updatedAt 
     }

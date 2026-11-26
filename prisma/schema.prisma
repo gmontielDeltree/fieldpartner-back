@@ -613,6 +613,9 @@ model Input {
   productUrl              String?
   eiqValue                Float?
   senasaId                String?
+  /// Technical sheet: stored file name and the original name shown to the user.
+  documentFile            String?
+  documentFileName        String?
   inputTypeId             Int?
   inputType               InputType? @relation(fields: [inputTypeId], references: [id])
   categoryId              String?
