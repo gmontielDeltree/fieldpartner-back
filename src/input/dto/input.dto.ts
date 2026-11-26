@@ -29,6 +29,8 @@ export const INPUT_SELECT = {
   productUrl: true,
   eiqValue: true,
   senasaId: true,
+  documentFile: true,
+  documentFileName: true,
   inputTypeId: true,
   categoryId: true,
   cropId: true,
@@ -37,6 +39,10 @@ export const INPUT_SELECT = {
   inputType: { select: INPUT_TYPE_SELECT },
   category: { select: CATEGORY_SELECT },
   crop: { select: CROP_SELECT },
+  cropApplications: {
+    select: { id: true, cropId: true, minDose: true, maxDose: true, suggestedDose: true },
+    orderBy: { cropId: 'asc' },
+  },
 } as const;
 
 export type InputDto = Prisma.InputGetPayload<{ select: typeof INPUT_SELECT }>;
