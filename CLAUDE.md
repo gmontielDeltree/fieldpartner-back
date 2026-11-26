@@ -163,6 +163,14 @@ El `JwtAuthGuard` es global (APP_GUARD): todo endpoint exige token salvo `@Publi
   `npm run import:couch-menus` trae system/modules/menu-modules: dry-run por defecto, `-- --apply`
   para escribir, idempotente; necesita `COUCHDB_URL` (y `COUCHDB_DB_SUFFIX=_stg` para staging).
   `npm run import:couch-fields` trae campos y lotes (KAN-65), mismas reglas; ver § PostGIS.
+  `npm run import:couch-numerators` trae el último número de cada cuenta y tipo (KAN-71):
+  **hay que correrlo antes de que la rama del front que toma números del back llegue a un
+  ambiente**, porque las órdenes y los contratos ya emitidos siguen en CouchDB; sin él cada
+  cuenta vuelve a 1 y repite números. Escribe `GREATEST(Postgres, CouchDB)`: nunca baja.
+- **Numeradores (`/numerators`, KAN-71):** `POST /numerators/:type/take` reserva el número
+  con un solo `INSERT ... ON CONFLICT DO UPDATE ... RETURNING` (atómico, sin carreras, crea el
+  numerador la primera vez); `GET /numerators/:type/peek` solo muestra el próximo. No hay
+  endpoint para fijar un valor a mano: el único que puede subirlo es el importador.
 - Si un cambio afecta datos de referencia, actualizar `prisma/seed.sql` (idempotente,
   `ON CONFLICT`).
 - Datos de prueba ("fruta") para probar casuísticas del front: `prisma/test-data.sql`, colgados
