@@ -91,12 +91,10 @@ export class LotRepository {
     await db.lot.delete({ where: { id }, select: { id: true } });
   }
 
-  /** Records that point at the lot (stock, exits, crop movements and deposits, PU, expenses). */
+  /** Records that point at the lot (stock movements, exits, PU, expenses). */
   async countReferences(id: string, db: Db): Promise<number> {
     const counts = await Promise.all([
-      db.stock.count({ where: { fieldLotId: id } }),
-      db.cropMovement.count({ where: { lotId: id } }),
-      db.cropDeposit.count({ where: { lotId: id } }),
+      db.stockMovement.count({ where: { lotId: id } }),
       db.exitField.count({ where: { lotId: id } }),
       db.productiveUnitField.count({ where: { lotId: id } }),
       db.campaignExpense.count({ where: { lotId: id } }),

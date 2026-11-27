@@ -1,0 +1,29 @@
+meta {
+  name: Stock movement (outflow, releases reservation)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/stock-movements
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "itemType": "SUPPLY",
+    "inputId": "{{inputId}}",
+    "campaignId": "{{campaignId}}",
+    "depositId": "{{depositId}}",
+    "location": "A",
+    "direction": "OUT",
+    "amount": 10,
+    "releaseReserved": 10,
+    "info": { "movementTypeId": "{{movementTypeId}}", "operationDate": "2026-11-27T10:00:00.000Z", "detail": "Bruno" }
+  }
+}

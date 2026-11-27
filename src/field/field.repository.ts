@@ -90,9 +90,7 @@ export class FieldRepository {
     const where = { fieldId: id };
     const counts = await Promise.all([
       this.prisma.lot.count({ where }),
-      this.prisma.stock.count({ where }),
-      this.prisma.cropMovement.count({ where }),
-      this.prisma.cropDeposit.count({ where }),
+      this.prisma.stockMovement.count({ where }),
       this.prisma.exitField.count({ where }),
       this.prisma.productiveUnitField.count({ where }),
       this.prisma.campaignExpense.count({ where }),

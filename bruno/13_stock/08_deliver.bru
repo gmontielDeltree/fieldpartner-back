@@ -1,0 +1,24 @@
+meta {
+  name: Deliver grain (deposit certificate)
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/crop-balances/deliver
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "campaignId": "{{campaignId}}",
+    "zafra": "gruesa_verano",
+    "cropId": "{{cropId}}",
+    "kg": 4000
+  }
+}

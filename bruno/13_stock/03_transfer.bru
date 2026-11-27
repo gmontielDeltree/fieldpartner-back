@@ -1,0 +1,27 @@
+meta {
+  name: Stock transfer
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/stock-movements/transfer
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "itemType": "SUPPLY",
+    "inputId": "{{inputId}}",
+    "campaignId": "{{campaignId}}",
+    "from": { "depositId": "{{depositId}}", "location": "A" },
+    "to": { "depositId": "{{depositId}}", "location": "B" },
+    "amount": 5,
+    "info": { "movementTypeId": "{{movementTypeId}}", "operationDate": "2026-11-27T10:00:00.000Z", "detail": "Bruno" }
+  }
+}

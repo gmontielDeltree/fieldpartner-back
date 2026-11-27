@@ -1,0 +1,12 @@
+meta {
+  name: List stocks
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/stocks?itemType=SUPPLY&depositId={{depositId}}
+  body: none
+  auth: none
+}
+

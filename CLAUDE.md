@@ -167,6 +167,28 @@ El `JwtAuthGuard` es global (APP_GUARD): todo endpoint exige token salvo `@Publi
   con un solo `INSERT ... ON CONFLICT DO UPDATE ... RETURNING` (atómico, sin carreras, crea el
   numerador la primera vez); `GET /numerators/:type/peek` solo muestra el próximo. No hay
   importador desde CouchDB (decisión del usuario): cada cuenta arranca en 1 en Postgres.
+- **Stock (`/stocks`, `/stock-movements`, `/crop-balances`, KAN-71):** módulo `src/stock/`.
+  Postgres arranca de cero (sin importador). Tres tablas:
+  - `stocks`: el saldo, una fila por cuenta + ítem (`inputId` para SUPPLY, `cropId` para CROP;
+    CHECK) + campaña + zafra + depósito + ubicación + número de lote, con `currentStock` y
+    `reservedStock` en `Decimal(18,4)`. La identidad es el índice único `stocks_identity_key`
+    **con `NULLS NOT DISTINCT`**, escrito a mano en la migración: Prisma no lo expresa y
+    `migrate diff` propone borrarlo. Es un error: sacarlo a mano, igual que con PostGIS.
+  - `stock_movements`: un solo libro para insumos y granos (ya no hay `crop_movements` ni
+    `crop_deposits`). Cada cambio de `currentStock` deja su movimiento en la misma
+    transacción. Los movimientos son **inmutables**: para deshacer uno se registra el
+    contrario. `sourceType`/`sourceId` apuntan al documento que lo generó (que puede seguir en
+    CouchDB) y `groupId` une las patas de una transferencia o transformación.
+  - `crop_balances`: lo comprometido (contratos) y lo entregado (certificados) por campaña +
+    zafra + cultivo. El stock actual de un grano **no se guarda**: es la suma de sus filas de
+    `stocks` (`GET /stocks/crop-summary`).
+  - Toda escritura pasa por `StockBusiness` en un `$transaction`: asegura la fila
+    (`INSERT … ON CONFLICT DO NOTHING`), la bloquea (`FOR UPDATE`, **siempre en el orden de
+    `stockKeyText`** para no armar deadlocks en transferencias y transformaciones), aplica las
+    reglas de `stock.rules.ts` y graba los movimientos. Un egreso solo deja el stock bajo cero
+    si el depósito tiene `isNegative` (si no, 409 `INSUFFICIENT_STOCK`); `releaseReserved`
+    libera la reserva con el egreso. La dirección no se valida contra `movement_types.stockSum`
+    (la cosecha usa "Labores" como ingreso).
 - Si un cambio afecta datos de referencia, actualizar `prisma/seed.sql` (idempotente,
   `ON CONFLICT`).
 - Datos de prueba ("fruta") para probar casuísticas del front: `prisma/test-data.sql`, colgados
@@ -190,7 +212,7 @@ El `JwtAuthGuard` es global (APP_GUARD): todo endpoint exige token salvo `@Publi
   vacía, y el índice único parcial `lots_fieldId_layoutId_name_active_key`
   (`lower(name)` entre los no archivados). Si una migración generada con `migrate dev`
   propone borrarlos, es un error: sacarlo a mano.
-- Las FK hacia `fields` y `lots` desde stock, salidas, movimientos, depósitos de granos,
+- Las FK hacia `fields` y `lots` desde movimientos de stock (origen del grano), salidas,
   unidades productivas y gastos son `RESTRICT`: con referencias se archiva (`archivedAt`), no
   se borra.
 - El SQL espacial común (normalizar, lote dentro del campo, superposiciones, recorte) está en

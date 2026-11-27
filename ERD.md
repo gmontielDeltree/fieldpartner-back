@@ -649,11 +649,11 @@ INACTIVE INACTIVE
   "stocks" {
     String id "🗝️"
     StockItemType itemType 
-    String location "❓"
-    String nroLot "❓"
-    Float currentStock 
-    Float reservedStock 
-    DateTime lastUpdate "❓"
+    String zafra 
+    String location 
+    String nroLot 
+    Decimal currentStock 
+    Decimal reservedStock 
     DateTime createdAt 
     DateTime updatedAt 
     }
@@ -661,49 +661,30 @@ INACTIVE INACTIVE
 
   "stock_movements" {
     String id "🗝️"
-    StockItemType itemType "❓"
-    String userId "❓"
-    String location "❓"
-    String nroLot "❓"
-    DateTime creationDate "❓"
+    InOutDirection direction 
+    Decimal amount 
+    DateTime operationDate 
     DateTime dueDate "❓"
-    Boolean isIncome 
     String detail "❓"
-    DateTime operationDate "❓"
-    Float amount 
     String voucher "❓"
     CurrencyCode currency "❓"
-    Float totalValue "❓"
+    Decimal totalValue "❓"
     String hours "❓"
     String unitMeasurement "❓"
+    String documentFile "❓"
+    String documentFileName "❓"
+    String sourceType "❓"
+    String sourceId "❓"
+    String groupId "❓"
     DateTime createdAt 
-    DateTime updatedAt 
     }
   
 
-  "crop_movements" {
+  "crop_balances" {
     String id "🗝️"
-    String zafra "❓"
-    InOutDirection direction 
-    DateTime date "❓"
-    String movement "❓"
-    String detail "❓"
-    Float amountKg 
-    DateTime createdAt 
-    DateTime updatedAt 
-    }
-  
-
-  "crop_deposits" {
-    String id "🗝️"
-    String zafra "❓"
-    String location "❓"
-    Float currentStockKg 
-    Float reservedStockKg 
-    Float currentStock 
-    Float committedStock 
-    Float deliveredStock 
-    DateTime lastUpdate "❓"
+    String zafra 
+    Decimal committedKg 
+    Decimal deliveredKg 
     DateTime createdAt 
     DateTime updatedAt 
     }
@@ -1036,31 +1017,19 @@ INACTIVE INACTIVE
     "stocks" |o--|| "StockItemType" : "enum:itemType"
     "stocks" }o--|o "inputs" : "input"
     "stocks" }o--|o "crops" : "crop"
-    "stocks" }o--|o "deposits" : "deposit"
     "stocks" }o--|o "campaigns" : "campaign"
-    "stocks" }o--|o "fields" : "field"
-    "stocks" }o--|o "lots" : "fieldLot"
+    "stocks" }o--|| "deposits" : "deposit"
     "stock_movements" }o--|| "accounts" : "account"
-    "stock_movements" }o--|o "movement_types" : "movementType"
-    "stock_movements" }o--|o "inputs" : "input"
-    "stock_movements" }o--|o "crops" : "crop"
-    "stock_movements" |o--|o "StockItemType" : "enum:itemType"
-    "stock_movements" }o--|o "deposits" : "deposit"
-    "stock_movements" }o--|o "campaigns" : "campaign"
+    "stock_movements" }o--|| "stocks" : "stock"
+    "stock_movements" }o--|| "movement_types" : "movementType"
+    "stock_movements" |o--|| "InOutDirection" : "enum:direction"
     "stock_movements" |o--|o "CurrencyCode" : "enum:currency"
-    "crop_movements" }o--|| "accounts" : "account"
-    "crop_movements" }o--|o "deposits" : "deposit"
-    "crop_movements" }o--|| "crops" : "crop"
-    "crop_movements" }o--|o "campaigns" : "campaign"
-    "crop_movements" }o--|o "fields" : "field"
-    "crop_movements" }o--|o "lots" : "lot"
-    "crop_movements" |o--|| "InOutDirection" : "enum:direction"
-    "crop_deposits" }o--|| "accounts" : "account"
-    "crop_deposits" }o--|o "campaigns" : "campaign"
-    "crop_deposits" }o--|| "crops" : "crop"
-    "crop_deposits" }o--|o "deposits" : "deposit"
-    "crop_deposits" }o--|o "fields" : "field"
-    "crop_deposits" }o--|o "lots" : "lot"
+    "stock_movements" }o--|o "fields" : "field"
+    "stock_movements" }o--|o "lots" : "lot"
+    "stock_movements" }o--|o "users" : "user"
+    "crop_balances" }o--|| "accounts" : "account"
+    "crop_balances" }o--|| "campaigns" : "campaign"
+    "crop_balances" }o--|| "crops" : "crop"
     "exit_fields" }o--|| "accounts" : "account"
     "exit_fields" }o--|o "campaigns" : "campaign"
     "exit_fields" }o--|o "fields" : "field"

@@ -1,0 +1,12 @@
+meta {
+  name: List stock movements
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/stock-movements?from=2026-11-01&limit=100
+  body: none
+  auth: none
+}
+
