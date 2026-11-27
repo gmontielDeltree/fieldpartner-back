@@ -21,6 +21,7 @@ import { LotModule } from './lot/lot.module';
 import { CampaignModule } from './campaign/campaign.module';
 import { InputModule } from './input/input.module';
 import { NumeratorModule } from './numerator/numerator.module';
+import { StockModule } from './stock/stock.module';
 import { LicenceTypeModule } from './licence-type/licence-type.module';
 import { SystemModule } from './system/system.module';
 import { FeatureModuleModule } from './feature-module/feature-module.module';
@@ -54,6 +55,7 @@ import { UsersModule } from './users/users.module';
     CampaignModule,
     InputModule,
     NumeratorModule,
+    StockModule,
     LicenceTypeModule,
     SystemModule,
     FeatureModuleModule,

@@ -46,6 +46,14 @@ export enum BusinessErrorCode {
   LOT_LAYOUT_IN_USE          = 'LOT_LAYOUT_IN_USE',
   RECORD_ARCHIVED            = 'RECORD_ARCHIVED',
 
+  // ── Stock (KAN-71) ────────────────────────────────────────────────────────
+  /** The outflow would leave the stock below zero and the deposit does not allow it. */
+  INSUFFICIENT_STOCK         = 'INSUFFICIENT_STOCK',
+  /** A supply line without its input, a grain line without its crop, or both. */
+  INVALID_STOCK_ITEM         = 'INVALID_STOCK_ITEM',
+  /** A transfer to the same deposit and location it comes from. */
+  SAME_LOCATION              = 'SAME_LOCATION',
+
   // ── General ───────────────────────────────────────────────────────────────
   INVALID_COUNTRY_CODE       = 'INVALID_COUNTRY_CODE',
   RECORD_NOT_FOUND           = 'RECORD_NOT_FOUND',

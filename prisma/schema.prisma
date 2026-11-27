@@ -233,9 +233,7 @@ model Crop {
   inputs              Input[]
   cropApplications    InputCropApplication[]
   stocks              Stock[]
-  stockMovements      StockMovement[]
-  cropMovements       CropMovement[]
-  cropDeposits        CropDeposit[]
+  cropBalances        CropBalance[]
   exitFields          ExitField[]
   contractSaleCereals ContractSaleCereal[]
   certificateDeposits CertificateDeposit[]
@@ -442,8 +440,7 @@ model Account {
   inputs              Input[]
   stocks              Stock[]
   stockMovements      StockMovement[]
-  cropMovements       CropMovement[]
-  cropDeposits        CropDeposit[]
+  cropBalances        CropBalance[]
   exitFields          ExitField[]
   withdrawalOrders    WithdrawalOrder[]
   numerators          Numerator[]
@@ -500,6 +497,7 @@ model User {
   updatedAt       DateTime      @updatedAt
 
   menuPermissions UserMenuPermission[]
+  stockMovements  StockMovement[]
 
   @@map("users")
 }
@@ -627,7 +625,6 @@ model Input {
 
   cropApplications    InputCropApplication[]
   stocks              Stock[]
-  stockMovements      StockMovement[]
   purchaseOrderItems  PurchaseOrderItem[]
   depositSupplyOrders DepositSupplyOrder[]
 
@@ -695,9 +692,6 @@ model Deposit {
 
   locations           DepositLocation[]
   stocks              Stock[]
-  stockMovements      StockMovement[]
-  cropMovements       CropMovement[]
-  cropDeposits        CropDeposit[]
   exitFields          ExitField[]
   depositSupplyOrders DepositSupplyOrder[]
 
@@ -735,9 +729,7 @@ model Field {
 
   lots                 Lot[]
   exitFields           ExitField[]
-  cropMovements        CropMovement[]
-  cropDeposits         CropDeposit[]
-  stocks               Stock[]
+  stockMovements       StockMovement[]
   productiveUnitFields ProductiveUnitField[]
   campaignExpenses     CampaignExpense[]
 
@@ -795,10 +787,8 @@ model Lot {
   updatedAt        DateTime                                   @updatedAt
 
   derivedLots          Lot[]                 @relation("LotSource")
-  stocks               Stock[]
+  stockMovements       StockMovement[]
   exitFields           ExitField[]
-  cropMovements        CropMovement[]
-  cropDeposits         CropDeposit[]
   productiveUnitFields ProductiveUnitField[]
   campaignExpenses     CampaignExpense[]
 
@@ -826,9 +816,7 @@ model Campaign {
   updatedAt   DateTime      @updatedAt
 
   stocks              Stock[]
-  stockMovements      StockMovement[]
-  cropMovements       CropMovement[]
-  cropDeposits        CropDeposit[]
+  cropBalances        CropBalance[]
   exitFields          ExitField[]
   withdrawalOrders    WithdrawalOrder[]
   contractSaleCereals ContractSaleCereal[]
@@ -943,121 +931,104 @@ model SocialEntity {
   @@map("social_entities")
 }
 
+/// Stock balance (KAN-71): one row per account + item + campaign + zafra + deposit + location
+/// + lot number, for supplies (`inputId`) and grain (`cropId`). Only the stock business logic
+/// writes it, always inside a transaction that also records the movement.
+/// The migration adds what the schema cannot express: the unique key over every column of the
+/// row's identity with NULLS NOT DISTINCT (`stocks_identity_key`) and CHECKs (exactly one item
+/// per `itemType`, reserved stock never negative). Postgres starts from zero: no CouchDB import.
 model Stock {
   id            String        @id @default(uuid())
   accountId     String
-  account       Account       @relation(fields: [accountId], references: [id])
+  account       Account       @relation(fields: [accountId], references: [id], onDelete: Restrict)
   itemType      StockItemType
   inputId       String?
-  input         Input?        @relation(fields: [inputId], references: [id])
+  input         Input?        @relation(fields: [inputId], references: [id], onDelete: Restrict)
   cropId        String?
-  crop          Crop?         @relation(fields: [cropId], references: [id])
-  depositId     String?
-  deposit       Deposit?      @relation(fields: [depositId], references: [id])
+  crop          Crop?         @relation(fields: [cropId], references: [id], onDelete: Restrict)
   campaignId    String?
-  campaign      Campaign?     @relation(fields: [campaignId], references: [id])
-  fieldId       String?
-  field         Field?        @relation(fields: [fieldId], references: [id], onDelete: Restrict)
-  fieldLotId    String?
-  fieldLot      Lot?          @relation(fields: [fieldLotId], references: [id], onDelete: Restrict)
-  location      String?
-  nroLot        String?
-  currentStock  Float         @default(0)
-  reservedStock Float         @default(0)
-  lastUpdate    DateTime?
+  campaign      Campaign?     @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  zafra         String        @default("")
+  depositId     String
+  deposit       Deposit       @relation(fields: [depositId], references: [id], onDelete: Restrict)
+  location      String        @default("")
+  nroLot        String        @default("")
+  currentStock  Decimal       @default(0) @db.Decimal(18, 4)
+  reservedStock Decimal       @default(0) @db.Decimal(18, 4)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
+  movements StockMovement[]
+
+  @@index([accountId, itemType])
+  @@index([depositId])
   @@map("stocks")
 }
 
+/// Stock ledger (KAN-71) for supplies and grain: every change of `stocks.currentStock` leaves a
+/// row here, in the same transaction. Rows are immutable: a mistake is undone with the opposite
+/// movement. The stock identity (item, deposit, location, campaign…) lives in `stocks`.
+/// `sourceType` + `sourceId` name the document that generated it (withdrawal order, field exit,
+/// activity execution…), which may still live in CouchDB. `groupId` ties the legs of a transfer
+/// or a transformation.
 model StockMovement {
-  id              String         @id @default(uuid())
-  accountId       String
-  account         Account        @relation(fields: [accountId], references: [id])
-  movementTypeId  String?
-  movementType    MovementType?  @relation(fields: [movementTypeId], references: [id])
-  inputId         String?
-  input           Input?         @relation(fields: [inputId], references: [id])
-  cropId          String?
-  crop            Crop?          @relation(fields: [cropId], references: [id])
-  itemType        StockItemType?
-  userId          String?
-  depositId       String?
-  deposit         Deposit?       @relation(fields: [depositId], references: [id])
-  campaignId      String?
-  campaign        Campaign?      @relation(fields: [campaignId], references: [id])
-  location        String?
-  nroLot          String?
-  creationDate    DateTime?
-  dueDate         DateTime?
-  isIncome        Boolean        @default(false)
-  detail          String?
-  operationDate   DateTime?
-  amount          Float          @default(0)
-  voucher         String?
-  currency        CurrencyCode?
-  totalValue      Float?
-  hours           String?
-  unitMeasurement String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id               String         @id @default(uuid())
+  accountId        String
+  account          Account        @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  stockId          String
+  stock            Stock          @relation(fields: [stockId], references: [id], onDelete: Restrict)
+  movementTypeId   String
+  movementType     MovementType   @relation(fields: [movementTypeId], references: [id], onDelete: Restrict)
+  direction        InOutDirection
+  amount           Decimal        @db.Decimal(18, 4)
+  operationDate    DateTime
+  dueDate          DateTime?
+  detail           String?
+  voucher          String?
+  currency         CurrencyCode?
+  totalValue       Decimal?       @db.Decimal(18, 4)
+  hours            String?
+  unitMeasurement  String?
+  documentFile     String?
+  documentFileName String?
+  fieldId          String?
+  field            Field?         @relation(fields: [fieldId], references: [id], onDelete: Restrict)
+  lotId            String?
+  lot              Lot?           @relation(fields: [lotId], references: [id], onDelete: Restrict)
+  sourceType       String?
+  sourceId         String?
+  groupId          String?
+  userId           String?
+  user             User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt        DateTime       @default(now())
 
+  @@index([accountId, operationDate])
+  @@index([stockId])
+  @@index([groupId])
+  @@index([sourceType, sourceId])
   @@map("stock_movements")
 }
 
-model CropMovement {
-  id         String         @id @default(uuid())
-  accountId  String
-  account    Account        @relation(fields: [accountId], references: [id])
-  depositId  String?
-  deposit    Deposit?       @relation(fields: [depositId], references: [id])
-  cropId     String
-  crop       Crop           @relation(fields: [cropId], references: [id])
-  campaignId String?
-  campaign   Campaign?      @relation(fields: [campaignId], references: [id])
-  fieldId    String?
-  field      Field?         @relation(fields: [fieldId], references: [id], onDelete: Restrict)
-  lotId      String?
-  lot        Lot?           @relation(fields: [lotId], references: [id], onDelete: Restrict)
-  zafra      String?
-  direction  InOutDirection
-  date       DateTime?
-  movement   String?
-  detail     String?
-  amountKg   Float          @default(0)
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
+/// Grain committed by sale contracts and delivered by deposit certificates (KAN-71), per
+/// account + campaign + zafra + crop. The current grain stock is not stored: it is the sum of
+/// the CROP rows in `stocks`. Once contracts move to the back (KAN-73) both columns can be
+/// derived from them.
+model CropBalance {
+  id          String   @id @default(uuid())
+  accountId   String
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  zafra       String   @default("")
+  cropId      String
+  crop        Crop     @relation(fields: [cropId], references: [id], onDelete: Restrict)
+  committedKg Decimal  @default(0) @db.Decimal(18, 4)
+  deliveredKg Decimal  @default(0) @db.Decimal(18, 4)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  @@map("crop_movements")
-}
-
-model CropDeposit {
-  id              String    @id @default(uuid())
-  accountId       String
-  account         Account   @relation(fields: [accountId], references: [id])
-  campaignId      String?
-  campaign        Campaign? @relation(fields: [campaignId], references: [id])
-  cropId          String
-  crop            Crop      @relation(fields: [cropId], references: [id])
-  depositId       String?
-  deposit         Deposit?  @relation(fields: [depositId], references: [id])
-  fieldId         String?
-  field           Field?    @relation(fields: [fieldId], references: [id], onDelete: Restrict)
-  lotId           String?
-  lot             Lot?      @relation(fields: [lotId], references: [id], onDelete: Restrict)
-  zafra           String?
-  location        String?
-  currentStockKg  Float     @default(0)
-  reservedStockKg Float     @default(0)
-  currentStock    Float     @default(0)
-  committedStock  Float     @default(0)
-  deliveredStock  Float     @default(0)
-  lastUpdate      DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  @@map("crop_deposits")
+  @@unique([accountId, campaignId, zafra, cropId])
+  @@map("crop_balances")
 }
 
 model ExitField {

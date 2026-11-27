@@ -1,0 +1,23 @@
+meta {
+  name: Reserve / release stock
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/stocks/reservations
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "lines": [
+      { "itemType": "SUPPLY", "inputId": "{{inputId}}", "campaignId": "{{campaignId}}", "depositId": "{{depositId}}", "location": "A", "delta": 10 }
+    ]
+  }
+}

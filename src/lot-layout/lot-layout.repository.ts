@@ -92,9 +92,7 @@ export class LotLayoutRepository {
   async countLotReferences(layoutId: string): Promise<number> {
     const lot = { layoutId };
     const counts = await Promise.all([
-      this.prisma.stock.count({ where: { fieldLot: lot } }),
-      this.prisma.cropMovement.count({ where: { lot } }),
-      this.prisma.cropDeposit.count({ where: { lot } }),
+      this.prisma.stockMovement.count({ where: { lot } }),
       this.prisma.exitField.count({ where: { lot } }),
       this.prisma.productiveUnitField.count({ where: { lot } }),
       this.prisma.campaignExpense.count({ where: { lot } }),

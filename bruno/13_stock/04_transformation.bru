@@ -1,0 +1,23 @@
+meta {
+  name: Stock transformation
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/stock-movements/transformation
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "origins": [{ "itemType": "SUPPLY", "inputId": "{{inputId}}", "campaignId": "{{campaignId}}", "depositId": "{{depositId}}", "location": "A", "amount": 2 }],
+    "destinations": [{ "itemType": "SUPPLY", "inputId": "{{inputId}}", "campaignId": "{{campaignId}}", "depositId": "{{depositId}}", "location": "C", "amount": 2 }],
+    "info": { "movementTypeId": "{{movementTypeId}}", "operationDate": "2026-11-27T10:00:00.000Z", "detail": "Bruno" }
+  }
+}
